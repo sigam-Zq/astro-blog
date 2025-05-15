@@ -5,7 +5,6 @@ import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://sigam-zq.github.io',
-  	base: 'astro-blog',
+	site: 'https://blogs.zqsrh.com',
 	integrations: [mdx(), sitemap()],
 });
