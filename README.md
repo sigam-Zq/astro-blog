@@ -1,68 +1,78 @@
-# Astro Starter Kit: Blog
+# Astro 博客
 
-```sh
-npm create astro@latest -- --template blog
+这是一个使用 [Astro](https://astro.build/) 构建的高性能博客项目，集成了 [TinaCMS](https://tina.io/) 以支持在线编辑。
+
+## ✨ 特性
+
+-   🚀 **Astro** - 使用 Astro 构建，速度快，性能高。
+-   📝 **TinaCMS** - **在线编辑支持**。通过可视化界面管理博文，实时预览。
+-   ✍️ **MDX** - 使用 MDX 编写博文，可以在 Markdown 中使用组件。
+-   RSS - 自动生成 RSS 订阅源。
+-   🗺️ **Sitemap** - 自动生成站点地图，有利于 SEO。
+-   部署 - 通过 GitHub Actions 自动部署到 GitHub Pages。
+
+## 🛠️ 技术栈
+
+-   [Astro](https://astro.build/)
+-   [TinaCMS](https://tina.io/)
+-   [MDX](https://mdxjs.com/)
+-   [TypeScript](https://www.typescriptlang.org/)
+
+## 🚀 项目结构
+
 ```
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/astro/tree/latest/examples/blog)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/astro/tree/latest/examples/blog)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/withastro/astro?devcontainer_path=.devcontainer/blog/devcontainer.json)
-
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-![blog](https://github.com/withastro/astro/assets/2244813/ff10799f-a816-4703-b967-c78997e8323d)
-
-Features:
-
-- ✅ Minimal styling (make it your own!)
-- ✅ 100/100 Lighthouse performance
-- ✅ SEO-friendly with canonical URLs and OpenGraph data
-- ✅ Sitemap support
-- ✅ RSS Feed support
-- ✅ Markdown & MDX support
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
+/
 ├── public/
+│   └── admin/          # TinaCMS 生成的管理页面 (忽略)
 ├── src/
-│   ├── components/
-│   ├── content/
-│   ├── layouts/
-│   └── pages/
-├── astro.config.mjs
-├── README.md
-├── package.json
-└── tsconfig.json
+│   ├── components/
+│   ├── content/
+│   │   └── blog/       # 博客文章 (Markdown / MDX)
+│   ├── layouts/
+│   └── pages/
+├── tina/               # TinaCMS 配置及模型定义
+└── package.json
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+-   **`src/content/blog`**: 博客文章 (Markdown / MDX)。
+-   **`tina/config.ts`**: TinaCMS 的内容模型和配置。
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+## 本地开发
 
-The `src/content/` directory contains "collections" of related Markdown and MDX documents. Use `getCollection()` to retrieve posts from `src/content/blog/`, and type-check your frontmatter using an optional schema. See [Astro's Content Collections docs](https://docs.astro.build/en/guides/content-collections/) to learn more.
+1.  **克隆项目**
 
-Any static assets, like images, can be placed in the `public/` directory.
+    ```bash
+    git clone <your-repository-url>
+    cd <your-repository-name>
+    ```
 
-## 🧞 Commands
+2.  **安装依赖**
 
-All commands are run from the root of the project, from a terminal:
+    ```bash
+    npm install
+    ```
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+3.  **启动开发服务器**
 
-## 👀 Want to learn more?
+    ```bash
+    npm run dev
+    ```
 
-Check out [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+    -   查看博客：`http://localhost:4321`
+    -   **在线编辑**：访问 `http://localhost:4321/admin/index.html` 进入 TinaCMS 管理后台。
 
-## Credit
+## 📦 命令
 
-This theme is based off of the lovely [Bear Blog](https://github.com/HermanMartinus/bearblog/).
+| 命令              | 描述                                     |
+| :---------------- | :--------------------------------------- |
+| `npm run dev`     | 启动本地开发服务器并同步启动 TinaCMS。     |
+| `npm run build`   | 构建生产环境的静态文件（包含 Tina 编译）。 |
+| `npm run preview` | 在本地预览构建后的站点。                   |
+
+## 部署与云端编辑
+
+1.  **自动部署**：该项目已配置为通过 GitHub Actions 自动部署到 GitHub Pages。当你将代码推送到 `main` 分支时，会自动触发部署流程。
+2.  **云端编辑 (Tina Cloud)**：
+    -   在 [tina.io](https://tina.io/) 注册并关联你的 GitHub 仓库。
+    -   获取 `clientId` 和 `token` 并配置为环境变量。
+    -   上线后，你就可以在你的线上域名 `/admin` 路径下直接编辑并自动提交代码。
