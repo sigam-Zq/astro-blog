@@ -96,6 +96,7 @@ const posts = (await getCollection('blog')).sort(
 				<ul>
 					{
 						posts.map((post) => (
+						!post.data.hidden &&
 							<li>
 								<a href={`/blog/${post.id}/`}>
 									<div class="content-left">
