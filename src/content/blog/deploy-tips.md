@@ -182,3 +182,26 @@ Redis 想生成 RDB 快照文件，但找不到可写的目录（甚至连目录
 **docker-compose 这里有些版本不支持挂在 文件,需要这里更改为挂目录**
 
 修改为       - ./redis:/usr/local/etc/redis 才可以成功运行
+
+
+
+### 关于node index.js 命令行后台执行
+
+当前如果不使用 Systemctl 进行管理的话 只是用当前的终端进行运行的情况下,终端结束 后台进程也会结束
+
+```bash
+nohup node index.js > log.log 2>&1 < /dev/null &
+```
+
+当前只会后台运行  运行jobs 可以查看到jobs 编号
+```bash
+root@gwszzt01:~/app-compose/web-server# jobs 
+[1]+  Running                 nohup node index.js > log.log 2>&1 &
+root@gwszzt01:~/app-compose/web-server# disown
+root@gwszzt01:~/app-compose/web-server# jobs 
+root@gwszzt01:~/app-compose/web-server# 
+root@gwszzt01:~/app-compose/web-server# 
+
+```
+
+disown  之后很明显就jobs 就无关了
