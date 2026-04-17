@@ -344,6 +344,54 @@ default-src 'self'; connect-src 'self';
 - `connect-src 'self'`：仅允许向当前域名发起 AJAX/_fetch/API 请求
 - 整体策略：**严格限制外部资源，仅信任自身源**，适合后端 API 接口
 
+
+### 遇见坑和怎么解决的
+
+#### 图片显示不出来
+*  背景 当前项目是 yzt.local 其中图片资源在 yzt.local:9000 使用 minio 公开桶取的图片资源
+
+* 导致   图片资源显示跨域 不可以访问
+
+* 修改 需要在前端的 localtion / {} 加上下面的内容
+
+>  img-src 'self' data: https: yzt.local:9000; 
+
+#### 解释
+- `img-src` = 管图片
+- `'self'` = 自己网站
+- `data:` = base64图片
+- `https:` = 所有HTTPS
+- `yzt.local:9000` = 我的文件服务器
+
+
+
+
+#### 音频无法播放
+
+CSP 策略没法在网站上播放
+
+新增以下内容
+> media-src 'self' blob: data:;
+
+1. **media-src**
+   规则类型：控制**音频/视频**资源的加载来源。
+
+2. **'self'**
+   允许加载**当前网站自身域名**下的媒体文件。
+
+3. **blob:**
+   允许加载 **Blob 二进制流** 媒体（如前端生成/处理的音视频）。
+
+4. **data:**
+   允许加载 **Data URL  base64** 格式的媒体资源。
+
+5. **;**
+   规则结束分隔符。
+
+---
+
+### 总结
+这条 CSP 规则：**只允许从本站、Blob 流、base64 三种来源加载音视频**，禁止其他外部域名媒体。
 ---
 
 ## 2. Referrer-Policy（引用来源策略）
