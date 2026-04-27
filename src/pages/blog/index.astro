@@ -9,6 +9,15 @@ import FormattedDate from '../../components/FormattedDate.astro';
 const posts = (await getCollection('blog')).sort(
 	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
 );
+
+const allTags = Array.from(new Set(posts.flatMap(p => p.data.tags || []))).sort();
+
+const url = new URL(Astro.request.url);
+const selectedTags = url.searchParams.getAll('tag').flatMap(t => t.split(',')).filter(Boolean);
+
+const filteredPosts = selectedTags.length > 0
+	? posts.filter(post => selectedTags.some(tag => (post.data.tags || []).includes(tag)))
+	: posts;
 ---
 
 <!doctype html>
@@ -18,6 +27,72 @@ const posts = (await getCollection('blog')).sort(
 		<style>
 			main {
 				width: 960px;
+			}
+			.tag-filter-container {
+				position: relative;
+				display: inline-block;
+				margin-bottom: 1.5rem;
+			}
+			.tag-filter-btn {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				padding: 0.5rem 1rem;
+				background: white;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 8px;
+				cursor: pointer;
+				font-size: 0.875rem;
+				color: rgb(var(--gray-dark));
+				transition: all 0.2s ease;
+			}
+			
+			.tag-dropdown {
+				position: absolute;
+				top: 100%;
+				left: 0;
+				margin-top: 0.25rem;
+				min-width: 200px;
+				max-height: 300px;
+				overflow-y: auto;
+				background: white;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 8px;
+				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+				z-index: 100;
+				display: none;
+			}
+			.tag-dropdown.open {
+				display: block;
+			}
+			.tag-dropdown label {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				padding: 0.5rem 0.75rem;
+				cursor: pointer;
+				font-size: 0.875rem;
+				transition: background 0.15s ease;
+			}
+			.tag-dropdown label:hover {
+				background: rgb(var(--gray-light));
+			}
+			.tag-dropdown input[type="checkbox"] {
+				width: 16px;
+				height: 16px;
+				cursor: pointer;
+			}
+			.tag-dropdown .clear-btn {
+				display: block;
+				padding: 0.5rem 0.75rem;
+				border-top: 1px solid rgb(var(--gray-light));
+				text-align: center;
+				font-size: 0.75rem;
+				color: rgb(var(--gray));
+				cursor: pointer;
+			}
+			.tag-dropdown .clear-btn:hover {
+				background: rgb(var(--gray-light));
 			}
 			ul {
 				display: flex;
@@ -73,6 +148,19 @@ const posts = (await getCollection('blog')).sort(
 			ul a:hover img {
 				box-shadow: var(--box-shadow);
 			}
+			.post-tags {
+				display: flex;
+				gap: 0.5rem;
+				margin-top: 0.5rem;
+				flex-wrap: wrap;
+			}
+			.post-tags span {
+				font-size: 0.75rem;
+				padding: 0.125rem 0.5rem;
+				background: rgb(var(--gray-light));
+				border-radius: 9999px;
+				color: rgb(var(--gray-dark));
+			}
 			@media (max-width: 720px) {
 				ul {
 					gap: 1rem;
@@ -93,9 +181,64 @@ const posts = (await getCollection('blog')).sort(
 		<Header />
 		<main>
 			<section>
+				<div class="tag-filter-container">
+					<button 
+						class={`tag-filter-btn flex items-center gap-2 px-6 py-3 min-w-[200px] rounded-full border-2 cursor-pointer text-sm transition-all ${selectedTags.length > 0 ? '!border-gray-900 !bg-gray-200' : 'border-gray-300'}`} 
+						id="tagFilterBtn" 
+						type="button"
+					>
+						<span>标签筛选</span>
+						{selectedTags.length > 0 && <span class="count">({selectedTags.length})</span>}
+						<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					</button>
+					<div class="tag-dropdown" id="tagDropdown">
+						{allTags.map(tag => (
+							<label>
+								<input
+									type="checkbox"
+									value={tag}
+									checked={selectedTags.includes(tag)}
+									onchange="handleTagChange(this)"
+								/>
+								{tag}
+							</label>
+						))}
+						{selectedTags.length > 0 && (
+							<div class="clear-btn" onclick="window.location.href='/blog'">
+								清除筛选
+							</div>
+						)}
+					</div>
+				</div>
+
+				<script is:inline>
+					function handleTagChange(checkbox) {
+						const selected = Array.from(document.querySelectorAll('.tag-dropdown input[type="checkbox"]:checked'))
+							.map(cb => cb.value);
+						if (selected.length > 0) {
+							window.location.href = '/blog?tag=' + selected.join(',');
+						} else {
+							window.location.href = '/blog';
+						}
+					}
+
+					document.getElementById('tagFilterBtn').addEventListener('click', function() {
+						document.getElementById('tagDropdown').classList.toggle('open');
+					});
+
+					document.addEventListener('click', function(e) {
+						const container = document.querySelector('.tag-filter-container');
+						if (!container.contains(e.target)) {
+							document.getElementById('tagDropdown').classList.remove('open');
+						}
+					});
+				</script>
+
 				<ul>
 					{
-						posts.map((post) => (
+						filteredPosts.map((post) => (
 						!post.data.hidden &&
 							<li>
 								<a href={`/blog/${post.id}/`}>
@@ -104,8 +247,13 @@ const posts = (await getCollection('blog')).sort(
 										<p class="date">
 											<FormattedDate date={post.data.pubDate} />
 										</p>
+										<div class="post-tags">
+											{post.data.tags?.map(tag => (
+												<span>{tag}</span>
+											))}
+										</div>
 									</div>
-									{post.data.heroImage ? 
+									{post.data.heroImage ?
 											<img width={720} height={360} src={post.data.heroImage} alt="" />
 										:
 											<img width={720} height={360} src="/cat-1.svg" alt="" />
