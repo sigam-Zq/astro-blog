@@ -1,7 +1,7 @@
 ---
 title: '动态插件系统调研'
 description: 'go动态加载调度插件技术调研'
-pubDate: '2026-04-22'
+pubDate: '2026-04-26'
 ---
 
 
