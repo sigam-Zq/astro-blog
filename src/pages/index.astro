@@ -29,12 +29,14 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 						{SITE_DESCRIPTION}
 					</p>
 					<p class="text-gray-500 mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center gap-4">
-						<img src="avatar.jpeg" alt="" class="w-16 h-16 rounded-full object-cover">
+						<img src="avatar.jpeg" alt="博主头像" class="w-16 h-16 rounded-full object-cover">
 						这个世界会变好吗?
 					</p>
 					<a
 						href="mailto:zq1024088055@163.com"
-						class="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+						class="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-lg
+						       hover:bg-gray-800 hover:scale-105 active:scale-95
+						       transition-all duration-200 shadow-md hover:shadow-lg"
 					>
 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
 						zq1024088055@163.com
@@ -49,7 +51,9 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 						{tags.map(tag => (
 							<a
 								href={`/blog?tag=${tag}`}
-								class="px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors text-sm font-medium"
+								class="px-4 py-2 bg-gray-100 text-gray-700 rounded-full
+								       hover:bg-gray-200 hover:scale-105 active:scale-95
+								       transition-all duration-150 text-sm font-medium"
 							>
 								{tag}
 							</a>
@@ -65,7 +69,9 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 						{latestPosts.map(post => (
 							<a
 								href={`/blog/${post.slug}`}
-								class="block p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow"
+								class="block p-6 bg-white rounded-xl shadow-sm
+								       hover:shadow-lg hover:-translate-y-1
+								       transition-all duration-250"
 							>
 								<div class="flex items-center gap-2 text-sm text-gray-500 mb-3">
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

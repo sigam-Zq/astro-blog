@@ -84,9 +84,39 @@ b {
 }
 a {
 	color: var(--accent);
+	transition: color 0.2s ease;
 }
 a:hover {
-	color: var(--accent);
+	color: var(--accent-dark);
+}
+
+.transition-base {
+	transition: all 0.2s ease;
+}
+
+.hover-lift {
+	transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.hover-lift:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 12px 24px rgba(var(--gray), 25%);
+}
+
+.hover-scale {
+	transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.hover-scale:hover {
+	transform: scale(1.05);
+}
+.hover-scale:active {
+	transform: scale(0.95);
+}
+
+.press-scale {
+	transition: transform 0.1s ease;
+}
+.press-scale:active {
+	transform: scale(0.97);
 }
 p {
 	margin-bottom: 1em;

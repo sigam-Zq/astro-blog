@@ -46,6 +46,11 @@ const filteredPosts = selectedTags.length > 0
 				color: rgb(var(--gray-dark));
 				transition: all 0.2s ease;
 			}
+
+			.tag-filter-btn:hover {
+				border-color: rgb(var(--gray));
+				box-shadow: 0 2px 8px rgba(var(--gray), 15%);
+			}
 			
 			.tag-dropdown {
 				position: absolute;
@@ -120,6 +125,7 @@ const filteredPosts = selectedTags.length > 0
 			}
 			ul li a:hover {
 				background: rgba(var(--gray-light), 0.3);
+				transform: translateX(4px);
 			}
 			.content-left {
 				flex: 1;
@@ -130,23 +136,31 @@ const filteredPosts = selectedTags.length > 0
 				object-fit: cover;
 				border-radius: 12px;
 				margin-bottom: 0;
+				transition: transform 0.3s ease, box-shadow 0.3s ease;
 			}
 			.title {
-				margin: 0 0 0.5rem 0;
+				margin: 0 0 0.25rem 0;
 				color: rgb(var(--black));
 				line-height: 1.2;
-				font-size: 1.5rem;
+				font-size: 1.75rem;
+				font-weight: 600;
 			}
 			.date {
 				margin: 0;
 				color: rgb(var(--gray));
 			}
-			ul li a:hover .title,
+			ul li a:hover .title {
+				color: var(--accent);
+				transition: color 0.2s ease;
+			}
 			ul li a:hover .date {
-				color: rgb(var(--accent));
+				color: var(--accent);
+				transition: color 0.2s ease;
 			}
 			ul a:hover img {
 				box-shadow: var(--box-shadow);
+				transform: scale(1.02);
+				transition: transform 0.3s ease, box-shadow 0.3s ease;
 			}
 			.post-tags {
 				display: flex;
@@ -160,6 +174,14 @@ const filteredPosts = selectedTags.length > 0
 				background: rgb(var(--gray-light));
 				border-radius: 9999px;
 				color: rgb(var(--gray-dark));
+				transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
+				cursor: default;
+			}
+
+			.post-tags span:hover {
+				background: rgb(var(--gray));
+				color: white;
+				transform: scale(1.05);
 			}
 			@media (max-width: 720px) {
 				ul {
