@@ -24,7 +24,8 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 		<BaseHead title={title} description={description} />
 		<style>
 			.prose {
-				color: rgb(var(--gray-dark));
+				color: var(--text-primary);
+				max-width: 720px;
 			}
 			.prose :global(h1),
 			.prose :global(h2),
@@ -32,7 +33,7 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 			.prose :global(h4),
 			.prose :global(h5),
 			.prose :global(h6) {
-				color: rgb(var(--black));
+				color: var(--text-primary);
 			}
 			.prose :global(a) {
 				color: var(--accent);
@@ -42,21 +43,77 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 			.prose :global(a:hover) {
 				color: var(--accent-dark);
 			}
+			.prose :global(pre) {
+				max-width: 900px;
+				margin-left: -90px;
+			}
+			@media (max-width: 900px) {
+				.prose :global(pre) {
+					margin-left: 0;
+					max-width: 100%;
+				}
+			}
+			.prose :global(p) {
+				color: var(--text-primary);
+			}
+			.prose :global(ul),
+			.prose :global(ol) {
+				color: var(--text-primary);
+			}
+			.prose :global(blockquote) {
+				border-left-color: var(--accent);
+				color: var(--text-secondary);
+			}
+			.prose :global(hr) {
+				border-color: var(--border-color);
+			}
 			.post-nav-card {
 				transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+				background: var(--bg-primary);
+				border-color: var(--border-color);
 			}
 			.post-nav-card:hover {
-				background-color: rgb(var(--gray-light));
+				background-color: var(--bg-secondary);
 				transform: translateX(4px);
-				box-shadow: 0 4px 12px rgba(var(--gray), 15%);
+				box-shadow: var(--shadow-md);
 			}
 			.post-nav-card-next:hover {
 				transform: translateX(-4px);
 			}
+			.post-nav-card :global(.nav-title) {
+				color: var(--text-primary);
+			}
+			.post-nav-card :global(.nav-label) {
+				color: var(--text-secondary);
+			}
+			.header-content {
+				color: var(--text-muted);
+			}
+			.updated-date {
+				color: var(--text-muted);
+			}
+			.title-text {
+				color: var(--text-primary);
+			}
+			.tag-chip {
+				background: var(--bg-secondary);
+				color: var(--text-secondary);
+				border-color: var(--border-color);
+			}
+			.tag-chip:hover {
+				background: var(--bg-tertiary);
+				color: var(--text-primary);
+			}
+			.back-link {
+				color: var(--text-secondary);
+			}
+			.back-link:hover {
+				color: var(--text-primary);
+			}
 		</style>
 	</head>
 
-	<body class="bg-white min-h-screen flex flex-col">
+	<body class="min-h-screen flex flex-col" style="background-color: var(--bg-primary);">
 		<Header />
 
 		<main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
@@ -74,19 +131,19 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 					</div>
 				)}
 
-				<header class="text-center mb-12 pb-8 border-b border-gray-200">
+				<header class="text-center mb-12 pb-8 border-b" style="border-color: var(--border-color);">
 					<div class="flex flex-col items-center gap-2 mb-6">
-						<time datetime={pubDate.toISOString()} class="text-sm text-gray-500">
+						<time datetime={pubDate.toISOString()} class="text-sm header-content">
 							<FormattedDate date={pubDate} />
 						</time>
 						{updatedDate && (
-							<span class="text-xs text-gray-400 italic">
+							<span class="text-xs updated-date italic">
 								更新于 <FormattedDate date={updatedDate} />
 							</span>
 						)}
 					</div>
 
-					<h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-6 leading-tight">
+					<h1 class="text-3xl md:text-4xl font-bold title-text mb-6 leading-tight">
 						{title}
 					</h1>
 
@@ -95,8 +152,8 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 							{tags.map(tag => (
 								<a
 									href={`/blog?tag=${tag}`}
-									class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium
-										   hover:bg-gray-200 hover:text-gray-900 hover:scale-105 active:scale-95
+									class="tag-chip px-3 py-1 rounded-full text-xs font-medium
+										   hover:scale-105 active:scale-95
 										   transition-all duration-150"
 								>
 									{tag}
@@ -106,21 +163,21 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 					)}
 				</header>
 
-				<div class="prose max-w-3xl mx-auto">
+				<div class="prose mx-auto">
 					<slot />
 				</div>
 
 				{(prevPost || nextPost) && (
-					<nav class="flex flex-col sm:flex-row justify-between gap-4 mt-16 pt-8 border-t border-gray-200">
+					<nav class="flex flex-col sm:flex-row justify-between gap-4 mt-16 pt-8 border-t" style="border-color: var(--border-color);">
 						{prevPost ? (
 							<a
 								href={`/blog/${prevPost.id}/`}
-								class="post-nav-card flex-1 p-5 rounded-xl border border-gray-200 text-left group"
+								class="post-nav-card flex-1 p-5 rounded-xl border text-left group"
 							>
-								<span class="text-xs text-gray-500 mb-1 block group-hover:text-gray-700">
+								<span class="nav-label text-xs mb-1 block">
 									← 上一篇
 								</span>
-								<span class="font-medium text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+								<span class="nav-title font-medium transition-colors line-clamp-2">
 									{prevPost.data.title}
 								</span>
 							</a>
@@ -131,12 +188,12 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 						{nextPost && (
 							<a
 								href={`/blog/${nextPost.id}/`}
-								class="post-nav-card post-nav-card-next flex-1 p-5 rounded-xl border border-gray-200 text-right group"
+								class="post-nav-card post-nav-card-next flex-1 p-5 rounded-xl border text-right group"
 							>
-								<span class="text-xs text-gray-500 mb-1 block group-hover:text-gray-700">
+								<span class="nav-label text-xs mb-1 block">
 									下一篇 →
 								</span>
-								<span class="font-medium text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2">
+								<span class="nav-title font-medium transition-colors line-clamp-2">
 									{nextPost.data.title}
 								</span>
 							</a>
@@ -147,7 +204,7 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 				<div class="text-center mt-8">
 					<a
 						href="/blog"
-						class="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900
+						class="back-link inline-flex items-center gap-2 text-sm
 						       hover:gap-3 transition-all duration-200"
 					>
 						<svg

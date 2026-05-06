@@ -15,6 +15,40 @@
 	--box-shadow:
 		0 2px 6px rgba(var(--gray), 25%), 0 8px 24px rgba(var(--gray), 33%),
 		0 16px 32px rgba(var(--gray), 33%);
+
+	/* Theme colors - Light mode */
+	--bg-primary: #ffffff;
+	--bg-secondary: #f6f8fa;
+	--bg-tertiary: #fafbfc;
+	--text-primary: #24292e;
+	--text-secondary: #586069;
+	--text-muted: #6a737d;
+	--border-color: #e1e4e8;
+	--border-muted: #d0d7de;
+	--code-bg: #f6f8fa;
+	--code-text: #24292e;
+	--code-inline-bg: #eff1f3;
+	--code-inline-text: #e83e8c;
+	--shadow-sm: 0 1px 3px rgba(27, 31, 36, 0.12);
+	--shadow-md: 0 4px 12px rgba(27, 31, 36, 0.15);
+}
+
+/* Dark mode */
+[data-theme="dark"] {
+	--bg-primary: #0d1117;
+	--bg-secondary: #161b22;
+	--bg-tertiary: #1c2128;
+	--text-primary: #e6edf3;
+	--text-secondary: #8b949e;
+	--text-muted: #6e7681;
+	--border-color: #30363d;
+	--border-muted: #21262d;
+	--code-bg: #282c34;
+	--code-text: #d4d4d4;
+	--code-inline-bg: rgba(110, 118, 129, 0.4);
+	--code-inline-text: #79c0ff;
+	--shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+	--shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 @font-face {
   font-family: 'Atkinson';
@@ -35,17 +69,17 @@
 	font-display: swap;
 }
 body {
-	font-family: 'Atkinson', sans-serif;
+	font-family: 'Atkinson', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	margin: 0;
 	padding: 0;
 	text-align: left;
-	background: linear-gradient(var(--gray-gradient)) no-repeat;
-	background-size: 100% 600px;
+	background: var(--bg-primary);
+	color: var(--text-primary);
 	word-wrap: break-word;
 	overflow-wrap: break-word;
-	color: rgb(var(--gray-dark));
 	font-size: 20px;
 	line-height: 1.7;
+	transition: background-color 0.3s ease, color 0.3s ease;
 }
 main {
 	width: 720px;
@@ -140,16 +174,30 @@ img {
 	border-radius: 8px;
 }
 code {
-	padding: 2px 5px;
-	background-color: rgb(var(--gray-light));
-	border-radius: 2px;
+	padding: 0.2em 0.4em;
+	background-color: var(--code-inline-bg);
+	color: var(--code-inline-text);
+	border-radius: 4px;
+	font-size: 0.875em;
+	font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
 pre {
-	padding: 1.5em;
+	padding: 1rem 1.25rem;
 	border-radius: 8px;
+	font-size: 0.875rem;
+	line-height: 1.7;
+	margin: 1.5em 0;
+	background-color: var(--code-bg);
+	color: var(--code-text);
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+	border: 1px solid var(--border-color);
+	max-width: 900px;
 }
 pre > code {
 	all: unset;
+	font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
 }
 blockquote {
 	border-left: 4px solid var(--accent);

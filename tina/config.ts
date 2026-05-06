@@ -69,6 +69,13 @@ export default defineConfig({
             label: "Body",
             isBody: true,
           },
+          {
+            type: "string",
+            name: "tags",
+            label: "Tags",
+            list: true,
+            description: "文章标签，例如: Code, Rust, Go",
+          },
         ],
       },
     ],

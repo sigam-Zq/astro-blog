@@ -17,26 +17,27 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 	</head>
-	<body class="bg-gray-50 min-h-screen flex flex-col">
+	<body class="min-h-screen flex flex-col" style="background-color: var(--bg-primary);">
 		<Header />
 		<main class="flex-1">
 			<section class="py-20 px-4">
 				<div class="max-w-4xl mx-auto text-center">
-					<h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+					<h1 class="text-4xl md:text-5xl font-bold mb-4" style="color: var(--text-primary);">
 						{SITE_TITLE}
 					</h1>
-					<p class="text-xl text-gray-600 mb-6">
+					<p class="text-xl mb-6" style="color: var(--text-secondary);">
 						{SITE_DESCRIPTION}
 					</p>
-					<p class="text-gray-500 mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center gap-4">
+					<p class="mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center gap-4" style="color: var(--text-muted);">
 						<img src="avatar.jpeg" alt="博主头像" class="w-16 h-16 rounded-full object-cover">
 						这个世界会变好吗?
 					</p>
 					<a
 						href="mailto:zq1024088055@163.com"
-						class="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-lg
-						       hover:bg-gray-800 hover:scale-105 active:scale-95
+						class="inline-flex items-center gap-2 px-6 py-3 rounded-lg
+						       hover:scale-105 active:scale-95
 						       transition-all duration-200 shadow-md hover:shadow-lg"
+						style="background-color: var(--text-primary); color: var(--bg-primary);"
 					>
 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
 						zq1024088055@163.com
@@ -44,16 +45,17 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 				</div>
 			</section>
 
-			<section class="py-16 px-4 bg-white">
+			<section class="py-16 px-4" style="background-color: var(--bg-secondary);">
 				<div class="max-w-4xl mx-auto">
-					<h2 class="text-2xl font-bold text-gray-900 mb-8 text-center">标签</h2>
+					<h2 class="text-2xl font-bold mb-8 text-center" style="color: var(--text-primary);">标签</h2>
 					<div class="flex flex-wrap justify-center gap-3">
 						{tags.map(tag => (
 							<a
 								href={`/blog?tag=${tag}`}
-								class="px-4 py-2 bg-gray-100 text-gray-700 rounded-full
-								       hover:bg-gray-200 hover:scale-105 active:scale-95
-								       transition-all duration-150 text-sm font-medium"
+								class="px-4 py-2 rounded-full text-sm font-medium
+								       hover:scale-105 active:scale-95
+								       transition-all duration-150"
+								style="background-color: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color);"
 							>
 								{tag}
 							</a>
@@ -64,16 +66,17 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 
 			<section class="py-16 px-4">
 				<div class="max-w-4xl mx-auto">
-					<h2 class="text-2xl font-bold text-gray-900 mb-8 text-center">最新文章</h2>
+					<h2 class="text-2xl font-bold mb-8 text-center" style="color: var(--text-primary);">最新文章</h2>
 					<div class="grid gap-6 md:grid-cols-3">
 						{latestPosts.map(post => (
 							<a
-								href={`/blog/${post.slug}`}
-								class="block p-6 bg-white rounded-xl shadow-sm
+								href={`/blog/${post.id}/`}
+								class="block p-6 rounded-xl shadow-sm
 								       hover:shadow-lg hover:-translate-y-1
 								       transition-all duration-250"
+								style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);"
 							>
-								<div class="flex items-center gap-2 text-sm text-gray-500 mb-3">
+								<div class="flex items-center gap-2 text-sm mb-3" style="color: var(--text-muted);">
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 									</svg>
@@ -81,10 +84,10 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 										{post.data.pubDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })}
 									</time>
 								</div>
-								<h3 class="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+								<h3 class="text-lg font-semibold mb-2 line-clamp-2" style="color: var(--text-primary);">
 									{post.data.title}
 								</h3>
-								<p class="text-gray-600 text-sm line-clamp-3">
+								<p class="text-sm line-clamp-3" style="color: var(--text-secondary);">
 									{post.data.description}
 								</p>
 							</a>

@@ -28,78 +28,86 @@ const filteredPosts = selectedTags.length > 0
 			main {
 				width: 960px;
 			}
-			.tag-filter-container {
-				position: relative;
-				display: inline-block;
-				margin-bottom: 1.5rem;
-			}
-			.tag-filter-btn {
+			.tags-filter-bar {
 				display: flex;
 				align-items: center;
+				gap: 1rem;
+				padding: 1rem 0;
+				margin-bottom: 1.5rem;
+				flex-wrap: wrap;
+			}
+			.tags-label {
+				font-size: 0.875rem;
+				color: rgb(var(--gray));
+				font-weight: 500;
+				white-space: nowrap;
+			}
+			.tags-list {
+				display: flex;
+				flex-wrap: wrap;
 				gap: 0.5rem;
-				padding: 0.5rem 1rem;
-				background: white;
-				border: 1px solid rgb(var(--gray-light));
-				border-radius: 8px;
-				cursor: pointer;
+				flex: 1;
+			}
+			.tag-chip {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.25rem;
+				padding: 0.375rem 0.75rem;
+				background: rgb(var(--gray-light));
+				border-radius: 9999px;
 				font-size: 0.875rem;
 				color: rgb(var(--gray-dark));
-				transition: all 0.2s ease;
+				cursor: pointer;
+				transition: all 0.15s ease;
+				border: 1px solid transparent;
 			}
-
-			.tag-filter-btn:hover {
-				border-color: rgb(var(--gray));
-				box-shadow: 0 2px 8px rgba(var(--gray), 15%);
+			.tag-chip:hover {
+				background: rgb(var(--gray));
+				color: white;
 			}
-			
-			.tag-dropdown {
-				position: absolute;
-				top: 100%;
-				left: 0;
-				margin-top: 0.25rem;
-				min-width: 200px;
-				max-height: 300px;
-				overflow-y: auto;
-				background: white;
-				border: 1px solid rgb(var(--gray-light));
-				border-radius: 8px;
-				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-				z-index: 100;
-				display: none;
+			.tag-chip.active {
+				background: var(--accent);
+				color: white;
+				border-color: var(--accent);
 			}
-			.tag-dropdown.open {
-				display: block;
+			.tag-chip.active:hover {
+				background: var(--accent-dark);
+				border-color: var(--accent-dark);
 			}
-			.tag-dropdown label {
-				display: flex;
+			.tag-remove {
+				font-size: 0.625rem;
+				margin-left: 0.25rem;
+				opacity: 0.7;
+				cursor: pointer;
+				transition: opacity 0.15s ease;
+			}
+			.tag-chip:hover .tag-remove,
+			.tag-chip.active .tag-remove {
+				opacity: 1;
+			}
+			.tag-remove:hover {
+				transform: scale(1.2);
+			}
+			.clear-all-btn {
+				display: inline-flex;
 				align-items: center;
-				gap: 0.5rem;
-				padding: 0.5rem 0.75rem;
-				cursor: pointer;
-				font-size: 0.875rem;
-				transition: background 0.15s ease;
-			}
-			.tag-dropdown label:hover {
-				background: rgb(var(--gray-light));
-			}
-			.tag-dropdown input[type="checkbox"] {
-				width: 16px;
-				height: 16px;
-				cursor: pointer;
-			}
-			.tag-dropdown .clear-btn {
-				display: block;
-				padding: 0.5rem 0.75rem;
-				border-top: 1px solid rgb(var(--gray-light));
-				text-align: center;
+				gap: 0.25rem;
+				padding: 0.375rem 0.75rem;
+				background: transparent;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 9999px;
 				font-size: 0.75rem;
 				color: rgb(var(--gray));
 				cursor: pointer;
+				transition: all 0.15s ease;
+				white-space: nowrap;
 			}
-			.tag-dropdown .clear-btn:hover {
+			.clear-all-btn:hover {
+				border-color: rgb(var(--gray));
+				color: rgb(var(--black));
 				background: rgb(var(--gray-light));
 			}
-			ul {
+			#postsList {
 				display: flex;
 				flex-direction: column;
 				gap: 2rem;
@@ -107,14 +115,18 @@ const filteredPosts = selectedTags.length > 0
 				margin: 0;
 				padding: 0;
 			}
-			ul li {
+			#postsList > li {
 				width: 100%;
+				transition: opacity 0.2s ease;
 			}
-			ul li * {
+			#postsList > li[style*="display: none"] {
+				display: none;
+			}
+			#postsList li * {
 				text-decoration: none;
 				transition: 0.2s ease;
 			}
-			ul li a {
+			#postsList li a {
 				display: flex;
 				justify-content: space-between;
 				align-items: center;
@@ -123,14 +135,14 @@ const filteredPosts = selectedTags.length > 0
 				border-radius: 12px;
 				background: transparent;
 			}
-			ul li a:hover {
+			#postsList li a:hover {
 				background: rgba(var(--gray-light), 0.3);
 				transform: translateX(4px);
 			}
 			.content-left {
 				flex: 1;
 			}
-			ul li img {
+			#postsList li img {
 				width: 240px;
 				height: 135px;
 				object-fit: cover;
@@ -149,15 +161,15 @@ const filteredPosts = selectedTags.length > 0
 				margin: 0;
 				color: rgb(var(--gray));
 			}
-			ul li a:hover .title {
+			#postsList li a:hover .title {
 				color: var(--accent);
 				transition: color 0.2s ease;
 			}
-			ul li a:hover .date {
+			#postsList li a:hover .date {
 				color: var(--accent);
 				transition: color 0.2s ease;
 			}
-			ul a:hover img {
+			#postsList li a:hover img {
 				box-shadow: var(--box-shadow);
 				transform: scale(1.02);
 				transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -177,22 +189,31 @@ const filteredPosts = selectedTags.length > 0
 				transition: background-color 0.15s ease, transform 0.15s ease, color 0.15s ease;
 				cursor: default;
 			}
-
 			.post-tags span:hover {
 				background: rgb(var(--gray));
 				color: white;
 				transform: scale(1.05);
 			}
 			@media (max-width: 720px) {
-				ul {
+				.tags-filter-bar {
+					gap: 0.75rem;
+				}
+				.tags-label {
+					width: 100%;
+				}
+				.tag-chip {
+					padding: 0.25rem 0.5rem;
+					font-size: 0.8125rem;
+				}
+				#postsList {
 					gap: 1rem;
 				}
-				ul li a {
+				#postsList li a {
 					flex-direction: column;
 					align-items: flex-start;
 					gap: 1rem;
 				}
-				ul li img {
+				#postsList li img {
 					width: 100%;
 					height: auto;
 				}
@@ -203,66 +224,142 @@ const filteredPosts = selectedTags.length > 0
 		<Header />
 		<main>
 			<section>
-				<div class="tag-filter-container">
-					<button 
-						class={`tag-filter-btn flex items-center gap-2 px-6 py-3 min-w-[200px] rounded-full border-2 cursor-pointer text-sm transition-all ${selectedTags.length > 0 ? '!border-gray-900 !bg-gray-200' : 'border-gray-300'}`} 
-						id="tagFilterBtn" 
-						type="button"
-					>
-						<span>标签筛选</span>
-						{selectedTags.length > 0 && <span class="count">({selectedTags.length})</span>}
-						<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-						</svg>
-					</button>
-					<div class="tag-dropdown" id="tagDropdown">
+				<div class="tags-filter-bar">
+					<span class="tags-label">标签</span>
+					<div class="tags-list">
 						{allTags.map(tag => (
-							<label>
-								<input
-									type="checkbox"
-									value={tag}
-									checked={selectedTags.includes(tag)}
-									onchange="handleTagChange(this)"
-								/>
+							<span
+								class={`tag-chip ${selectedTags.includes(tag) ? 'active' : ''}`}
+								data-tag={tag}
+								onclick={`toggleTag('${tag}')`}
+							>
 								{tag}
-							</label>
+								{selectedTags.includes(tag) && (
+									<span class="tag-remove" onclick={`event.stopPropagation(); clearSingleTag('${tag}')`}>✕</span>
+								)}
+							</span>
 						))}
-						{selectedTags.length > 0 && (
-							<div class="clear-btn" onclick="window.location.href='/blog'">
-								清除筛选
-							</div>
-						)}
 					</div>
+					{selectedTags.length > 0 && (
+						<button class="clear-all-btn" onclick="clearTagFilter()">
+							✕ 清除全部
+						</button>
+					)}
 				</div>
 
 				<script is:inline>
-					function handleTagChange(checkbox) {
-						const selected = Array.from(document.querySelectorAll('.tag-dropdown input[type="checkbox"]:checked'))
-							.map(cb => cb.value);
-						if (selected.length > 0) {
-							window.location.href = '/blog?tag=' + selected.join(',');
+					function getSelectedTags() {
+						return Array.from(document.querySelectorAll('.tag-chip.active'))
+							.map(function(el) { return el.dataset.tag; });
+					}
+
+					function toggleTag(tag) {
+						var selectedTags = getSelectedTags();
+
+						if (selectedTags.includes(tag)) {
+							clearSingleTag(tag);
 						} else {
-							window.location.href = '/blog';
+							selectedTags.push(tag);
+							updateURLAndFilter(selectedTags);
 						}
 					}
 
-					document.getElementById('tagFilterBtn').addEventListener('click', function() {
-						document.getElementById('tagDropdown').classList.toggle('open');
-					});
+					function clearSingleTag(tagValue) {
+						var selectedTags = getSelectedTags().filter(function(t) { return t !== tagValue; });
+						updateURLAndFilter(selectedTags);
+					}
 
-					document.addEventListener('click', function(e) {
-						const container = document.querySelector('.tag-filter-container');
-						if (!container.contains(e.target)) {
-							document.getElementById('tagDropdown').classList.remove('open');
+					function clearTagFilter() {
+						updateURLAndFilter([]);
+					}
+
+					function updateURLAndFilter(selectedTags) {
+						var url = new URL(window.location);
+						if (selectedTags.length > 0) {
+							url.searchParams.set('tag', selectedTags.join(','));
+						} else {
+							url.searchParams.delete('tag');
+						}
+						history.pushState({}, '', url);
+
+						updateTagUI(selectedTags);
+						filterPosts(selectedTags);
+					}
+
+					function updateTagUI(selectedTags) {
+						document.querySelectorAll('.tag-chip').forEach(function(chip) {
+							var tag = chip.dataset.tag;
+							var isActive = selectedTags.includes(tag);
+
+							if (isActive) {
+								chip.classList.add('active');
+								if (!chip.querySelector('.tag-remove')) {
+									var removeSpan = document.createElement('span');
+									removeSpan.className = 'tag-remove';
+									removeSpan.textContent = '✕';
+									removeSpan.onclick = function(e) {
+										e.stopPropagation();
+										clearSingleTag(tag);
+									};
+									chip.appendChild(removeSpan);
+								}
+							} else {
+								chip.classList.remove('active');
+								var removeSpan = chip.querySelector('.tag-remove');
+								if (removeSpan) removeSpan.remove();
+							}
+						});
+
+						var filterBar = document.querySelector('.tags-filter-bar');
+						var clearBtn = filterBar.querySelector('.clear-all-btn');
+
+						if (selectedTags.length > 0) {
+							if (!clearBtn) {
+								clearBtn = document.createElement('button');
+								clearBtn.className = 'clear-all-btn';
+								clearBtn.onclick = clearTagFilter;
+								clearBtn.innerHTML = '✕ 清除全部';
+								filterBar.appendChild(clearBtn);
+							} else {
+								clearBtn.style.display = '';
+							}
+						} else {
+							if (clearBtn) clearBtn.style.display = 'none';
+						}
+					}
+
+					function filterPosts(selectedTags) {
+						var allPosts = document.querySelectorAll('#postsList > li[data-tags]');
+
+						allPosts.forEach(function(li) {
+							var postTags = (li.dataset.tags || '').split(',').filter(Boolean);
+
+							if (selectedTags.length === 0) {
+								li.style.display = '';
+							} else if (selectedTags.some(function(tag) { return postTags.includes(tag); })) {
+								li.style.display = '';
+							} else {
+								li.style.display = 'none';
+							}
+						});
+					}
+
+					document.addEventListener('DOMContentLoaded', function() {
+						var urlParams = new URLSearchParams(window.location.search);
+						var selectedTags = urlParams.getAll('tag').flatMap(function(t) { return t.split(','); }).filter(Boolean);
+
+						if (selectedTags.length > 0) {
+							updateTagUI(selectedTags);
+							filterPosts(selectedTags);
 						}
 					});
 				</script>
 
-				<ul>
+				<ul id="postsList">
 					{
-						filteredPosts.map((post) => (
+						posts.map((post) => (
 						!post.data.hidden &&
-							<li>
+							<li data-tags={post.data.tags?.join(',') || ''}>
 								<a href={`/blog/${post.id}/`}>
 									<div class="content-left">
 										<h4 class="title">{post.data.title}</h4>
