@@ -64,6 +64,7 @@ const filteredPosts = selectedTags.length > 0
 			.tag-chip:hover {
 				background: rgb(var(--gray));
 				color: white;
+				transform: scale(1.05);
 			}
 			.tag-chip.active {
 				background: var(--accent);
@@ -218,11 +219,46 @@ const filteredPosts = selectedTags.length > 0
 					height: auto;
 				}
 			}
+			#postsList > li {
+				opacity: 0;
+				animation: fadeInUp 0.5s ease forwards;
+			}
+			#postsList > li:nth-child(1) { animation-delay: 0.1s; }
+			#postsList > li:nth-child(2) { animation-delay: 0.15s; }
+			#postsList > li:nth-child(3) { animation-delay: 0.2s; }
+			#postsList > li:nth-child(4) { animation-delay: 0.25s; }
+			#postsList > li:nth-child(5) { animation-delay: 0.3s; }
+			#postsList > li:nth-child(6) { animation-delay: 0.35s; }
+			#postsList > li:nth-child(7) { animation-delay: 0.4s; }
+			#postsList > li:nth-child(8) { animation-delay: 0.45s; }
+			#postsList > li:nth-child(9) { animation-delay: 0.5s; }
+			#postsList > li:nth-child(10) { animation-delay: 0.55s; }
+			@keyframes fadeInUp {
+				from {
+					opacity: 0;
+					transform: translateY(20px);
+				}
+				to {
+					opacity: 1;
+					transform: translateY(0);
+				}
+			}
+			.post-item-hidden {
+				display: none !important;
+				opacity: 0;
+				animation: none;
+			}
+			@media (prefers-reduced-motion: reduce) {
+				#postsList > li {
+					opacity: 1;
+					animation: none;
+				}
+			}
 		</style>
 	</head>
 	<body>
 		<Header />
-		<main>
+		<main id="main-content">
 			<section>
 				<div class="tags-filter-bar">
 					<span class="tags-label">标签</span>
@@ -335,11 +371,11 @@ const filteredPosts = selectedTags.length > 0
 							var postTags = (li.dataset.tags || '').split(',').filter(Boolean);
 
 							if (selectedTags.length === 0) {
-								li.style.display = '';
+								li.classList.remove('post-item-hidden');
 							} else if (selectedTags.some(function(tag) { return postTags.includes(tag); })) {
-								li.style.display = '';
+								li.classList.remove('post-item-hidden');
 							} else {
-								li.style.display = 'none';
+								li.classList.add('post-item-hidden');
 							}
 						});
 					}
@@ -373,9 +409,9 @@ const filteredPosts = selectedTags.length > 0
 										</div>
 									</div>
 									{post.data.heroImage ?
-											<img width={720} height={360} src={post.data.heroImage} alt="" />
+											<img width={720} height={360} src={post.data.heroImage} alt="" loading="lazy" />
 										:
-											<img width={720} height={360} src="/cat-1.svg" alt="" />
+											<img width={720} height={360} src="/cat-1.svg" alt="" loading="lazy" />
 										}
 								</a>
 							</li>

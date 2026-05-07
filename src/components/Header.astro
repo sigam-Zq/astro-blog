@@ -3,7 +3,11 @@ import HeaderLink from './HeaderLink.astro';
 import { SITE_TITLE } from '../consts';
 ---
 
-<header>
+<a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-accent focus:text-white focus:rounded">
+		跳过导航
+	</a>
+
+	<header>
 	<nav>
 		<h2><a href="/">{SITE_TITLE}</a></h2>
 		<div class="internal-links">
@@ -111,13 +115,28 @@ import { SITE_TITLE } from '../consts';
 		border-bottom: 4px solid transparent;
 		text-decoration: none;
 		transition: color 0.2s ease, border-color 0.2s ease;
+		position: relative;
+	}
+	nav a::after {
+		content: '';
+		position: absolute;
+		bottom: 0;
+		left: 0;
+		width: 0;
+		height: 4px;
+		background: var(--accent);
+		transition: width 0.2s ease;
+	}
+	nav a:hover::after,
+	nav a.active::after {
+		width: 100%;
 	}
 	nav a:hover {
 		color: var(--accent);
 	}
 	nav a.active {
 		text-decoration: none;
-		border-bottom-color: var(--accent);
+		border-bottom-color: transparent;
 	}
 	.right-links {
 		display: flex;

@@ -4,11 +4,19 @@ import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
+import BackToTop from '../components/BackToTop.astro';
 import { getCollection } from 'astro:content';
 
 type Props = CollectionEntry<'blog'>['data'];
 
 const { title, description, pubDate, updatedDate, heroImage, tags } = Astro.props;
+
+// Calculate reading time based on content
+const entry = await Astro.props;
+const content = await Astro.slots.render('default');
+const textContent = content.replace(/<[^>]*>/g, '');
+const wordCount = textContent.split(/\s+/).filter(Boolean).length;
+const readingTime = Math.max(1, Math.ceil(wordCount / 200));
 
 const allPosts = (await getCollection('blog')).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
@@ -110,13 +118,24 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 			.back-link:hover {
 				color: var(--text-primary);
 			}
+			.post-nav-card {
+				opacity: 0;
+				animation: fadeInUp 0.5s ease forwards;
+			}
+			.post-nav-card:first-of-type {
+				animation-delay: 0.2s;
+			}
+			.post-nav-card:last-of-type {
+				animation-delay: 0.3s;
+			}
 		</style>
 	</head>
 
 	<body class="min-h-screen flex flex-col" style="background-color: var(--bg-primary);">
+		<div id="reading-progress" class="reading-progress" style="width: 0%;"></div>
 		<Header />
 
-		<main class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
+		<main id="main-content" class="flex-1 w-full max-w-4xl mx-auto px-4 py-8">
 			<article>
 				{heroImage && (
 					<div class="mb-10 rounded-2xl overflow-hidden shadow-lg">
@@ -135,6 +154,8 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 					<div class="flex flex-col items-center gap-2 mb-6">
 						<time datetime={pubDate.toISOString()} class="text-sm header-content">
 							<FormattedDate date={pubDate} />
+							<span class="mx-2">·</span>
+							<span>{readingTime} 分钟阅读</span>
 						</time>
 						{updatedDate && (
 							<span class="text-xs updated-date italic">
@@ -227,5 +248,23 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 		</main>
 
 		<Footer />
+		<BackToTop />
+
+		<script is:inline>
+			(function() {
+				var progressBar = document.getElementById('reading-progress');
+				if (!progressBar) return;
+
+				function updateProgress() {
+					var scrollTop = window.scrollY;
+					var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+					var progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+					progressBar.style.width = progress + '%';
+				}
+
+				window.addEventListener('scroll', updateProgress, { passive: true });
+				updateProgress();
+			})();
+		</script>
 	</body>
 </html>

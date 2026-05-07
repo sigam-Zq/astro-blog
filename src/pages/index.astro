@@ -19,7 +19,7 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 	</head>
 	<body class="min-h-screen flex flex-col" style="background-color: var(--bg-primary);">
 		<Header />
-		<main class="flex-1">
+		<main id="main-content" class="flex-1">
 			<section class="py-20 px-4">
 				<div class="max-w-4xl mx-auto text-center">
 					<h1 class="text-4xl md:text-5xl font-bold mb-4" style="color: var(--text-primary);">
@@ -68,12 +68,10 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 				<div class="max-w-4xl mx-auto">
 					<h2 class="text-2xl font-bold mb-8 text-center" style="color: var(--text-primary);">最新文章</h2>
 					<div class="grid gap-6 md:grid-cols-3">
-						{latestPosts.map(post => (
+						{latestPosts.map((post, index) => (
 							<a
 								href={`/blog/${post.id}/`}
-								class="block p-6 rounded-xl shadow-sm
-								       hover:shadow-lg hover:-translate-y-1
-								       transition-all duration-250"
+								class={`block p-6 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-250 animate-fade-in-up stagger-${index + 1}`}
 								style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);"
 							>
 								<div class="flex items-center gap-2 text-sm mb-3" style="color: var(--text-muted);">
