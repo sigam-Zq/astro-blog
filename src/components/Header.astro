@@ -16,6 +16,12 @@ import { SITE_TITLE } from '../consts';
 			<HeaderLink href="/about">About</HeaderLink>
 		</div>
 		<div class="right-links">
+			<a href="/blog" class="search-icon-link" aria-label="搜索文章" title="搜索文章">
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+					<circle cx="11" cy="11" r="8"></circle>
+					<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+				</svg>
+			</a>
 			<button id="theme-toggle" class="theme-toggle" aria-label="切换主题">
 				<svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 					<circle cx="12" cy="12" r="5"></circle>
@@ -188,6 +194,17 @@ import { SITE_TITLE } from '../consts';
 		transition: color 0.2s ease;
 	}
 	.social-links a:hover {
+		color: var(--text-primary);
+	}
+	.search-icon-link {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.5rem;
+		color: var(--text-secondary);
+		transition: color 0.2s ease;
+	}
+	.search-icon-link:hover {
 		color: var(--text-primary);
 	}
 	@media (max-width: 720px) {
