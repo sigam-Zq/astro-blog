@@ -55,7 +55,7 @@ Impl
  * 强一致性 Strong Consistency 保障获取最新的值 [这里普遍会需要消耗更多的通讯资源-但是一般副本考虑异地容灾的场景下-这里的通讯都比较慢]
  * 弱一致性 Weak Consistency 不保证获取最新的值 [常用]
 
-
+> 这里可以引入和考虑ACP原则 无法同时获得的不可能三角
 
 
 ### MapReduce
@@ -550,3 +550,82 @@ func main() {
 
 
 ````
+
+
+
+
+## Lecture 2: RPC and Threads
+
+
+
+* 并行开发 问题
+
+ 这里需要区分开的概念 【异步编程 （event-driven programming）】
+ * 对同一内存地址的竞争 race   解决思路- 加锁 或者用原子性操作
+  > go 提供的参数 -race  go run -race main.go 会检测出来竞争
+ * coordination (协作) 我需要等待你操作完成我再进行 eg 生产者消费者模型   解决思路 channel  sync.cond waitGroup
+ * Deadlock
+
+
+关于for并发执行的时候拿到的值
+```go
+package main
+
+var values = [5]int{10, 11, 12, 13, 14}
+func main() {
+
+	
+	// 版本1
+	for ix,iy := range values {
+		go func() {
+			fmt.Print(ix, " ",iy)
+		}()
+	}
+
+	fmt.Println()
+	time.Sleep(5e9)
+	fmt.Println()
+	
+	for ix,iy := range values {
+		go func(ix,iy int ) {
+			fmt.Print(ix, " ",iy)
+		}(ix,iy)
+	}
+}
+```
+
+```bash
+
+$ go run main.go 
+4-14    2-12    3-13    0-10    1-11
+
+0-10    4-14    2-12    3-13    1-11    (base) 
+zq102@MSI MINGW64 /d/desktop/workDemo/go/learn/closure2 (master)
+$ go run main.go 
+3-13    0-10    1-11    4-14    2-12
+
+4-14    2-12    0-10    3-13    1-11    (base) 
+zq102@MSI MINGW64 /d/desktop/workDemo/go/learn/closure2 (master)
+$ go run main.go 
+4-14    0-10    3-13    1-11    2-12
+
+4-14    2-12    0-10    3-13    1-11    (base) 
+zq102@MSI MINGW64 /d/desktop/workDemo/go/learn/closure2 (master)
+$ go version
+go version go1.24.9 windows/amd64
+```
+
+这里尝试多次发现没有问题了
+这里查询发现go做了修复
+
+[修复](https://go.dev/blog/loopvar-preview?utm_source=chatgpt.com)
+
+
+
+
+## Lecture 3: GFS
+
+
+
+big Storage
+
