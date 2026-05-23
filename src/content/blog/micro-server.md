@@ -104,7 +104,7 @@ or. 面向资源的 接口
 实现架构上的 关注分离(Separation concerns)
 
 
-![alt text](micro-server-v1.png)
+![alt text](/micro-server-v1.png)
 
 最后后端流量进来 网关-> BFF -> 微服务
 
