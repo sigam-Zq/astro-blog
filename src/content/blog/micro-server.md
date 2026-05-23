@@ -947,3 +947,208 @@ type Error interface {
 
 
 
+### 3.1 Goroutine
+
+
+#### Processes and Threads
+
+Process 拥有资源的主体 资源包括内存地址空间 文件句柄 设备 线程
+
+Threads  存在一个主线程，主线程是进程执行起点，并且主线程结束时进程也就终止了
+CSP 模型
+#### Goroutines And Paralelism
+
+
+系统层面是不支持协程的，这里的协程是go运行时虚拟出来的概念，由go运行时进行调用逻辑执行单元（P）来实现和线程进行绑定运行
+这里可以轻松调度数十万个协程
+
+Concurrency is not Parallelism
+并发不是并行。 并行是两个或更多线程在不同的处理器进行执行代码。如果运行时配置为使用多个逻辑处理器。则调度程序将在这些逻辑处理器之前分配gotoutine，但是，要是想获取真正的并行性，需要在具备多个物理处理的计算机上运行程序，否则goroutine将正对单个物理处理器并发运行，即使go运行时使用多个逻辑处理器。换而言之，这里goroutine 是并行和并发要针对具体机器和go运行时的使用情况相关、
+
+
+
+* go 关键字进行并发
+  * 搭配 select {} 这里的空select {} 语句将永远阻塞
+
+
+但是这里需要检查注意的一个原则  keep yourself busy or do the work yourself  如果你要等这个线程完成后再去做。不如自己做
+
+leave concurrency to the caller  将并发处理交给调用者处理
+```go
+func  ListDirectory(dir string)([]string,error)
+
+func  ListDirectory(dir string)chan string
+```
+这里的处理就有区别了
+  一个是需要处理完所有的数据才可以返回， 第二个是处理一个就及时的返回了，类似于流式的处理
+
+但是这里的第二个还会出现两个问题
+ * 无法返回一个错误，无法区分没有数值和报错，这里都表现为通道关闭为特征
+ * 调用者必须持续从通道获取， 因为这里不去取出来，内部协程会一直阻塞
+
+ 针对这两个问题的优化
+ ```go
+ func ListDirectory(dir string, fn func(string))
+ ```
+ eg。标准库的 filepath.WalkDir 
+
+ 这里如果函数启动goroutine 则必须向调用方提供显式停止改 goroutine的方法。通常，将异步执行函数的决定权交给该函数的调用方通常更容易（不然这个协程容易泄露）
+  泄露的demo
+  ```go
+  func leak(){
+    ch := make(chan int)
+
+    go func(){
+      val := <=ch
+      fmt.Println("we received a value:".val)
+    }()
+  }
+  ```
+  Never start a goroutine without knonwning when it will stop 这个协程永远不会停止
+
+  使用协程前要问自己两个问题
+  * When will it terminate? 什么时候终止
+  * What could prevent it from terminating? 有什么因素阻止其终止
+
+
+协程有时候会使用下面的内容
+小知识点 
+> log.Fatal 会调用 os.Exit(1)  这里defer 不会被调用到
+
+这种调用一般只推荐两个地方用 一个是 init() 函数 或者main 配置解析失败的情况 
+
+
+
+
+#### Application Lifecycle
+
+这里的协程最主要的就是关于对启用一个服务的生命周期的管理
+
+[demo](https://github.com/da440dil/go-workgroup/tree/master)
+
+
+main 函数启用多个服务要怎么样管理启停，要怎么优雅终止
+
+服务的启动还涉及到下面的工作
+* 应用的信息 版本名称
+* 服务的启停
+* 信号的处理 sigterm 之类 这里是一个启动服务的包装器
+  ```GO
+  package util
+
+  import (
+    "context"
+    "os"
+    "os/signal"
+    "syscall"
+    "time"
+
+    "backend/pkg/logging"
+    "go.uber.org/zap"
+  )
+
+  // The Run function sets up a signal handler and executes a handler function until a termination signal
+  // is received.
+  func Run(ctx context.Context, handler func(ctx context.Context) (func(), error)) error {
+    state := 1
+    sc := make(chan os.Signal, 1)
+    signal.Notify(sc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+    cleanFn, err := handler(ctx)
+    if err != nil {
+      return err
+    }
+
+  EXIT:
+    for {
+      sig := <-sc
+      logging.Context(ctx).Info("Received signal", zap.String("signal", sig.String()))
+
+      switch sig {
+      case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
+        state = 0
+        break EXIT
+      case syscall.SIGHUP:
+      default:
+        break EXIT
+      }
+    }
+
+    cleanFn()
+    logging.Context(ctx).Info("Server exit, bye...")
+    time.Sleep(time.Millisecond * 100)
+    os.Exit(state)
+    return nil
+  }
+  ```
+* 服务的注册
+
+
+
+关于一个应用管理器的扩展  go-kratos kit 库的设计涉及技术思想
+ * [errorgroup](https://zhuanlan.zhihu.com/p/338999914)  关于waitgroup的扩展
+ * [function options](https://www.cnblogs.com/taadis/p/go-functional-options-pattern.html) 简单灵活可选配置应用参数
+
+
+ #### Incomplete work
+
+ * 一个事件上报的采集逻辑直接使用 go 开启协程取进行事件上报，但是主进程如果结束，这里协程逻辑会直接断开，导致工作没有进行导致数据的上报失败，并且没有错误日志
+     * 解决 使用 sync.WaitGroup 主程序最后wait  等待上报完成后关闭
+    > 这里进一步讨论- 但是这种情况这里不能无限等待 子协程的结束，主协程 需要加入超时控制的功能
+    
+    然后这里需要在原有的基础上使用context 进行超时控制，然后使用channel(包括 ctx.done 的捕捉) 使用暂停信号进行统一协调退出
+
+> 然后这里channel 协调的时候 需要注意最好是写的channel的owner 先去退出，然后读的owner 再去退出
+
+
+关于等价代码
+```go
+for data := range ch {
+	fmt.Println(data)
+}
+```
+和
+```go
+for {
+	data, ok := <-ch
+
+	if !ok {
+		break
+	}
+
+	fmt.Println(data)
+}
+```
+
+
+
+### 3.2 Memory model
+
+[官方原文](https://go.dev/ref/mem)
+如何保证一个协程看到另一个协程的最新改动， 这里如果程序中修改数据时有其他gorotine 同时读取， 那么必须将读串行化。为了串行化访问，这里请使用channel 或者 其他同步原语， 例如 sync 和sync/atomic 来保护数据
+
+
+Happend-Before
+* 注意 cpu重排和编译器重排 结合 多核心场景下 改变执行顺序导致协程读写打印顺序导致bug出现 （因为多核心场景下，重排优化策略下没法判断优化后的代码语义一致-【是因为不同的线程在不同核心下各自独享store buffer 然后这里缓存buffer 刷到内存还需要一定时间-然后这里的内存不一致性导致读写的不是一块内容】）
+
+memory Reordering 的影响
+
+这里需要引入 锁的操作了  cpu 支持的[berrier或者fence](https://blog.csdn.net/fengyuyeguirenenen/article/details/123558970) 在支持 go语言层面支持了lock和原子操作的原语句
+
+扩展 [COW](https://zhuanlan.zhihu.com/p/333675803) copy on write linux的fork机制 go map的扩容机制
+
+这里interface 和 [slice的赋值也不是原子的](https://mianshi.idocdown.com/app/articles/blogs/detail/12266) 需要注意
+
+
+[MESI](https://zhuanlan.zhihu.com/p/351550104) CPU 怎么保持缓存的一致性
+
+
+
+### 3.3 package sync
+
+
+* share Meemory By Communicating
+
+
+### 3.4 package context
+
+
