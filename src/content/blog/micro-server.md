@@ -1149,6 +1149,268 @@ memory Reordering 的影响
 * share Meemory By Communicating
 
 
+chan 底层实现其实也是互斥锁的实现
+
+多线程访问同一资源(变量或者数据结构)的情况需要注意这里的数据静态
+小公举
+go 1.1 引入 race detector
+go build -race 这里编译后如果产生data race 执行会有打印 [非生产环境使用]
+go test -race
+
+
+其实i++这样的指令在汇编里是三条指令-不一定是原子操作 ,这里可以通过 gobuild -S 生成汇编去验证 寄存器读写两步 自增一步
+
+go 鼓励去使用channel 而不推荐使用 共享统一变量
+但是 channel 比较适用于 任务分发这一类比较重的任务上, 一些比较轻量的任务还是 使用变量等使用 Mutex Atomic 这类的 轻的
+
+#### Detecting Race Conditions With Go
+
+其中 single machine word 赋值这里将是原子的,
+但是这里
+```go
+type interface struct{
+ Type uintptr 
+ Data uintptr
+}
+```
+由于这里类型并不是单个 macheine word , 所以这个的赋值操作并不是原子的在 Go memory model 被提及
+
+普通指针, map,slice 可以安全更新么 
+没有安全的data race(safe data race) 您的程序要么没有data race 要么其操作没有定义
+* 原子行
+* 可见性 (别人能不能立刻看到你改完的数据)
+
+atomic.Value 的值满足这个原子行和可见性的要求
+其中数据多的情况下。使用 atomic.Value 和 Copy on write [老的数据做成只读- 这里只做拷贝替换]的策略,性能要比使用读写锁的性能还要好  实现无锁访问共享数据
+
+扩展阅读
+[redis bgsave 方案](https://cloud.tencent.com/developer/article/2594926)
+
+
+#### Mutex
+上面讲了 atomic 这里是Mutex
+
+
+有个小demo 反应了一些问题
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+func main() {
+
+	done := make(chan bool, 1)
+	var mu sync.Mutex
+
+	g1Count := 0
+	// goroutine 1
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				g1Count++
+				mu.Lock()
+				time.Sleep(100 * time.Microsecond)
+				mu.Unlock()
+			}
+		}
+	}()
+	fmt.Printf("g1 count: %d\n", g1Count)
+
+	// goroutine 2
+	for i := 0; i < 10; i++ {
+		time.Sleep(100 * time.Microsecond)
+		mu.Lock()
+		//do sometinring
+		mu.Unlock()
+	}
+	done <- true
+}
+```
+```bash
+z@MacBookPro goroutine-mutex % go run main.go 
+g1 count: 0
+# 这里没有复现 这里如果是go1.8版本的情况下 g1 count: 应该能达到七十万 然后g2运行十次
+```
+
+关于锁的几种实现
+
+* Barging
+为了提高吞吐量,锁释放的时候会唤醒第一个等待者,然后把锁给一个等待者或者给第一个请求锁的人,(会锁饥饿?)
+
+* Handsoff
+锁准备释放的时候,一直持有直到第一个等待者准备好获取锁,它降低了吞吐量
+一个互斥锁的hansoff会完美的平衡两个goroutine之间的锁分配,但是会降低性能,因为他会迫使第一个goroutine 等待锁
+
+* Spinning
+自旋, 自旋在等待队列为空或者应用程序重度使用锁效果不错. parking 和unparking gorouteines 有着不敌的性能成本开销,相比自旋来说要慢点很多
+
+
+go 1.8 使用了barging 和spining 的结合实现, 当试图获取已经持有的锁的时候,如果本地队列为空并且P的数量大于1,goroutine将自旋几次(用一个P会阻塞程序),自旋后, goroutine park .在程序高频使用锁的情况下,它充当了一个快速路径
+
+go 1.9 通过添加一个新的饥饿模式来解决前期解释的问题,改模式将会释放的时候触发handsoff. 所有等待超过1毫秒的goroutine(也被称为有界等待) 会被标记为饥饿状态. 当被标记为饥饿状态时 unlock方法会handsoff把锁直接扔给下一个等待者.
+饥饿模式下,自旋也会被停用,因为传入的goroutines 将没有机会获取为下一个等待者保留的锁.
+
+
+
+#### errorgroup
+
+多个并发数据做数据聚合的情况 使用waitgroup 然后多一个返回错误的情况 使用[errgroup](golang.org/x/sync/errgroup)
+
+* 并行工作流
+* 错误处理 或者优雅降级
+* context 传播和取消
+* 利用局部变量和闭包
+
+
+新版本的特性
+Go 1.25（2025-08 发布）
+```go
+var wg sync.WaitGroup
+wg.Go()
+```
+func (wg *WaitGroup) Go(f func()) 
+而 errgroup 一直有这样的用法,
+然后这里的 主要是封装wg.Add(1) wg.Done() 的结束逻辑
+
+
+
+#### sync.Pool
+
+
+ sync.Pool 的场景是用来保存和复用临时对象,以减少内存分配, 降低GC压力(Request-Driven).
+  针对频繁使用,可能会导致从栈数据逃逸到堆数据的变量 ,建议用这种方式进行管理
+
+  这里也会被GC清空,不过清空后再去取会重新new一个出来, go1.13之后引入了[victim cache](https://zhuanlan.zhihu.com/p/700363736) 将会pool內数据拷贝一份, 避免GC将其清空,即使没有引用的内容,也可以保留最多两轮GC. 
+
+  还有 ring buffer 概念
+
+
+
+
+
 ### 3.4 package context
 
+#### channel
+
+* Unbuffered channels
+
+ch := make(chan struct{})
+这里发送消息的时候,如果另一边一一直没有取到数据的时候,发送消息的那一方会一直阻塞.反之亦然
+ 
+> 无缓冲的通道本质是保持同步
+
+* Receice 先于 Send 发生 
+* 好处, 100%会收到
+* 代价 延迟效果未知
+
+#### Buffered channel
+
+有容量的channel
+
+* Send 先于 Receive 发生.
+* 好处延迟更小
+* 代价: 不保证到达, 越大的buffer ,越小的保障代价,buffer = 1时,给你一个延迟信息的保障
+
+
+Latencies due to under-sized buffer
+
+
+#### GO Concurrency Patterns
+
+* Timing out  eg. ctx的超时取消
+* Moving on。 eg, 多个查询, 只要最快的
+  ```go
+    func Query(conns []Conn,query string)Result{
+      ch := make(chan Result)
+      for _,conn :=range conns{
+        go func(c Conn){
+          select {
+            case ch <- c.DoQuery(query):
+            default:
+          }
+        }(conn)
+      }
+      return <-ch
+    }
+  ```
+* Pipeline
+* Fan-out, Fan-in
+* Cancellation
+  * Close 一定要先于Receive发生(类似于Buffered)
+  * 不需要传递数据, 或者传递 nil
+  * 非常适合取消和超时控制
+
+* Context
+......
+
+
+#### 原则
+  最最重要
+  > Close 一定要先于Receive发生(类似于Buffered)
+  
+  对于吞吐量 buffer 的大小并不完全正相关,只要阻塞了这里就会降低吞吐
+   
+  这里的本质是内存换时间
+
+  如果buffer 满的情况,看看是否可以视情况 要不要丢弃消息
+
+
+#### Context
+go 1.7引入
+
+请求级别的上下文 用户信息 trace-id等 
+可以做取消,超时控制
+
+* 这里主要针对 goroutine 进行生命周期的管控 通过context 的树形分发
+
+
+两种使用方式 
+
+1. 直接挂到传参的第一个 Foo(ctx context.Context)
+2. 使用option 选项 net/http 中 Request.WithContext(ctx context.Context)
+
+
+
+一些特性
+ 这里ctx 一般是放到某个请求或者调用链当中, 一般不应该出现在结构体中(比如ctx代表每次网络请求, 但是和下面的数据库对象本身无关)
+
+
+
+#### 原理
+
+
+context.WithValue 内部基于valueCtx 出现
+```go
+type valueCrx struct{
+  Context,
+  key,val interface{}
+}
+```
+
+这里是链表形式存储的,每次WithValue都会创建一个新的ctx,读取值也会递归查找
+
+这里为什么没有使用map ?
+
+因为这里是协程 并发的, 可以上下层级隔离的,也在这种场景下,value 应该是immutable的
+每次都是新的 context
+
+还有就是
+Context Value should inform not control
+
+Replace a Context using WithCannel, WithDeadline WithTimeout WithValue 
+这里需要总是用复制然后加新的内容处理 Copy on Write 保障并发隔离,不具备data race
+
+
+##### 级联取消
+ 所有 WithCannel 方法会递归 当下的 ctx 的 done信号传播下去
+
+ 加上时间就是间接的等同于 Timeout
 
