@@ -1414,3 +1414,178 @@ Replace a Context using WithCannel, WithDeadline WithTimeout WithValue
 
  加上时间就是间接的等同于 Timeout
 
+
+
+
+## Lecture 4 Go的工程化实现
+
+
+### 4.1 工程项目结构
+
+
+
+### 4.2 API 设计
+
+google gRPC 设计框架
+
+[proto3规范](https://protobuf.com.cn/programming-guides/proto3/)
+
+[google protobuf 规范](https://protobuf.dev/reference/php/api-docs/Google/Protobuf/Duration)
+```protobuf
+syntax = "proto3";
+
+import "google/protobuf/duration.proto";
+
+package config.redis.v1
+
+message redis {
+  .......
+  google.protobuf.Duration read_timeout = 5;
+}
+
+
+```
+
+git 单独维护一个API 的库, 在原本仓库使用 hook 复制 pb 等IDL文件复制过去
+
+
+### 4.3 配置管理
+
+
+* 环境变量
+* 静态文件配置
+* 动态配置。expval 项目
+* 全局配置
+
+两个人
+[Dave chenry](https://dave.cheney.net/)
+[Rob Pike](https://zhuanlan.zhihu.com/p/701900373)
+
+
+区分可选和必选的配置
+
+模式 Functional options 设置配置
+eg net.http DialOption方法
+* 这里还限制了  options 可修改的项  相比 struct 直接管理配置
+
+
+配置的防御编程 (异常值不允许)
+权限和变更跟踪
+配置版本和应用对齐
+安全的配置变更 逐步部署,回滚更改,自动回滚
+
+
+
+### 4.4 模块 & 单元测试
+
+
+#### 依赖管理
+  module repo 模式
+
+ GOPATH 模式   1.6 Vendor 特性 Go Module 包管理 
+
+
+使用GOPROXY会去连接后查询项目
+如果使用本地私有仓库的情况下可以使用 GOPRIVATE 进行配置, 这里相当同步配置了 GONOPROXY(不走GOPROXY代理) 和GONOSUMDB(sum和校验)
+同时 GPRPIVATE 也可以识别git ssh key 进行权限校验
+
+需要搭配项目[ goproxy ](https://github.com/goproxy/goproxy) 进行使用
+* 用户本地配置 GONOSUMDB=私仓仓库 go env 配置
+* goproxy server 配置 exclude 进行排除所代理仓库
+* goproxy server 配置 ssh key 并且在仓库添加只读权限
+* goproxy server 配置 .gitconfig 把ssh 替换为http方式访问 - 不同部门的不同仓库 http不带有身份信息
+
+
+#### Unittest
+
+(GOOGLE测试之道)(https://github.com/ztly/tools/blob/master/books/%E3%80%8AGoogle%E8%BD%AF%E4%BB%B6%E6%B5%8B%E8%AF%95%E4%B9%8B%E9%81%93%E3%80%8B.pdf)
+
+
+go 官方 Subtests + Gomock完成整个测试
+
+
+
+## 5 Go架构设计 微服务可用性建设
+
+
+### 5.1 隔离
+
+#### 服务隔离
+ * 动静隔离
+   小到 cpu 的 cacheline 的 false_sharing ,数据库, mysql bufferpool. 还有静态资源的缓存加速。还有CDN
+
+  eg.  这里同一个对象, 分两个表, 一个经常不更新的字段一个表(rarely update) 一个经常更新的一个表(frequently update) 
+
+
+ * 读写分离
+
+ 主从 Replicaset CQRS
+
+#### 轻重隔离
+ * 核心
+ 对服务进行资源池等级划分 L0 L1 L2
+
+  这里还得考虑故障域的差异隔离
+  多集群使用冗余资源来提升吞吐和容灾能力
+
+
+ * 快慢 
+  主要针对 吞吐量的有快慢概念
+  多sink
+ 
+ * 热点
+ 经常访问的数据就是热点 对访问频次最高的Top k 数据, 并对其访问进行缓存
+  * 小表广播 remotecache 提升为localcache app定时更新 运营平台支持广播刷新localcache. atomic.Value
+  * 主动预热 bypass监控主动防御
+
+#### 物理隔离
+  * 线程
+   java 会出现线程池满的情况
+   go 这里只会阻塞goroutine 不会影响到线程
+   这里需要考虑掉goroutine到规模的控制 ,防止OOM
+
+   有必要需要这里熔断,(基于信号量或者池化技术 设置maxSize 触发 fallback)
+
+  * 进程 集群 机房
+
+  隔离之后 把一些全局的故障可以做成局部的故障
+
+### 5.2 超时
+
+主要是为了快速失败。fail fast
+针对内网要求100ms 外网要求1s 一秒钟法则
+* 网络环境有不确定性 
+* 客户端和服务端不一致的超时策略导致资源浪费
+* ”默认值“策略
+* 高延迟服务 导致client 浪费资源等待, 使用超时传递.进程间传递+跨进程传递
+
+超时控制是微服务可用性的第一道关,良好的超时策略,可以尽可能让服务不堆积请求,尽快清空高延迟的请求,释放goroutine
+
+
+
+超时分为
+ 1. 连接超时
+ 2. 写超时
+ 3. 读超时
+
+
+跨进程的超时传递
+服务的提供者要定义好latency SLO 更新到 grpc proto 定义中,后续服务迭代, 都保证SLO
+
+
+### 5.3 过载保护和限流
+
+
+### 5.4 降级&重试
+
+
+### 5.5 重试和负载均衡
+
+
+## 6 评论系统架构设计
+
+
+### 6.1 功能和架构设计
+
+### 6.1 存储和可用性设计
+
