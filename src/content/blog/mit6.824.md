@@ -629,3 +629,19 @@ go version go1.24.9 windows/amd64
 
 big Storage
 
+数据进行分片 sharing
+
+这里会出现问题， 出现问题就需要 容错（） 容错就需要副本replicas 然后这里会出现不一致的问题 这里保持一致性 需要降低性能 除了容错还需要自动恢复
+
+强一致性 的分布式系统 对接外部会感觉到和一个单机机器一样的效果
+
+GFS 就是在解决上面问题的基础上获得性能和强一致性 其本质是解决超大文件的顺序访问的问题 
+
+一个字典 master做存储的索引 然后chunk（64mb）存储具体的数据 
+master Data
+ - fliename  ->chunk handler 
+ - handle  -> list of chunk server 
+             version # 
+			 primary 
+             lease expriation
+ - LOG CheckPoint -- disk
