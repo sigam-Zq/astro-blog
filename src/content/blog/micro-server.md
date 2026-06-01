@@ -1971,14 +1971,100 @@ redis 是单线程（新版本双线程） memcache 是多线程QPS 差异不大
   保证时效性和一致性
 
 
+redis 存在操作。setnx 操作 可以保证数据的一致性
+
+有的是保证了最终一致性,存在临时不一致
+
+
+
 #### 缓存模式
+
+
+多级缓存 
+  这里最重要是保持多级缓存的一致性
+  * 清理需要 先清理下游再上游
+  * 下游的缓存的expire 要大于上游, 里面穿透回源
+
+
+热点缓存
+  * 小表广播 RemoteCache 提升到 LocalCache App定时更新, 可以让运营平台支持广播刷新LocalCache
+
+  * 主动监控防御预热
+  * 基础库支持热点发现,自动短时的 short-live cache
+  * 多Cluster 支持
+    * 多key设计: 使用多副本, 减少节点热点的问题,
+      * 使用多副本ms_1, ms_2 ms_3 每个节点保存一份数据, 使得请求分布到多个节点,避免单点热点问题
+
+
+热点缓存这里创建多个Cluster 和微服务组成一个region 的时候, 这里用空间换时间 这里后期会存在一致性的问题,  解决这个问题需要引入 Anycast(任播)的方式去同步删除缓存或者更新
+
+
+* 缓存删除操作
+这里的删除缓存通常比较安全, 具备较好的一致性,但是可用行较差
+* 更新缓存
+这里更新如果顺序错乱会导致不一致的问题, 但是服务于热点数据会有较好的性能体验
+
+
+* 删除操作的进一步改进
+ Stale sets
+      如果程序可以忍受稍微过期一点的数据, 针对这个可以进一步降低系统负载, 当一个key被删除的时候,delete 请求或者cache空间满了, 删除的key会放到一个临时的数据结构中, 续上比较短的一段时间,然后有数据请求进来的时候会返回,并标记数据为 Stale,大部分应用场景中,Stale Value 是可以忍受的(但是这里需要改一下 redis 和memcache 的源码才能实现)
+
+
+* 穿透缓存
+  * singlefly 对关键之进行一致性hash ,针对某一个维度的key 一定命中某个节点,然后再节点内使用互斥锁, 保证归并回源,但是对于批量查询无解
+  * 分布式锁 不推荐-还是使用singlefly封装好的分布式锁这里是
+  * 队列. 队列来进行回源 使用singlefly 进行归并
+  * lease  (facebook做法) lease 是64bit的token, 当第一次产生cache miss的时候颁发一个token 出去, 然后由这个进程去查询库, 已经颁发出去token 的缓存这里别的进程来取的时候进行等待, 然后上一个颁发token 的10s 后没有取到,这里就给下一个来请求颁发一个token , 这里从数据库取出来的数据库后进行校验下token 然后把 值 写入缓存
+
+
+  都是只要一个人去从数据库获取数据,然后去写
 
 #### 缓存技巧
 
 
+Incast Congestion（常称 TCP Incast），中文译为汇聚拥塞 / 多对一拥塞
+ 网络中的包太多的情况 redis 会根据根据上次发出的包的延迟有多少,然后自动调整下一次包的打包发出的个数 
+
+
+
+* 易读性的前提下 ,key 尽可能的小, 可以用int就不要用string 对于小于N的value  redis内部有shared_object 缓存
+
+* 拆分key. 用 redis 使用 hashes的情况下, 同一个hashes key 会落到同一个redis 
+
+
+* 空缓存设置 . 部分数据数据库为空, 这里应该设置空缓存, 避免每次请求都缓存miss 直接打到 DB
+
+* 空缓存保护策略
+
+* 读失败后的写缓存策略 (降级后一般读失败不触发回写缓存)
+
+* 序列化使用 protobuf 尽可能减少size
+
+* 工具化浇水代码 --java可以使用注解-go 一般使用生成代码来实现
+
+
+Memcache 小技巧
+ * flag 使用 标记 compress encoding large value
+ * memcahe 支持gets 尽量读取 尽可能的 pipeline 减少网络往返
+ * 使用二进制协议 支持pipeline delete UDP读取, TCP更新
+
+
+redis 小技巧
+
+* 增量一致性 Exsist 换成 EXPIRE , 然后去调用 ZADD/HSET ,这样保证索引结构务必存在的情况下去操作新增数据
+* BITSET 存储每日登陆用户, 单个标记位置 (Boolean), 为了避免单个bitset 过大或者热点 需要使用region sharding 比如按照mid 求余 ,,,
+
+* List 抽奖的奖池, 顶弹幕, 用户累世 Stack PUSH/POP操作;
+* SortedSet; 翻页 有序的集合,杜绝 zrange 或者zrevrange 返回的集合过大
+* Heads过小的时候使用压缩列表,过大的时候容易导致 rehash 内存浪费, 也杜绝返回 hgetall 对于小结构图, 建议直接使用memcache KV;
+* String Set 的Ex/Nx 等KV 扩展指令 SetNx 可以用于分布式锁, SetEX 集合了set+EXPIRE
+* Sets 类似于Hashs 无Value 去重等,
+* 尽可能的Pipeline指令,避免集合过大
+* 避免超大Value
 
 
 
 ### 8.2 分布式事务
+
 
 
