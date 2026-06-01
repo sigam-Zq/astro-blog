@@ -1705,7 +1705,7 @@ positive feedback 用户总是积极重试,访问一个不可达达服务 做重
 
 ### 5.5 重试和负载均衡
 
-JSQ(最闲轮训)算法 局部最优不一定是全局最优
+[JSQ(Join-the-shortest-queue)算法](https://developer.aliyun.com/article/1366877) 局部最优不一定是全局最优
 [p2c算法](https://exceting.github.io/2020/08/13/负载均衡-P2C算法/)
 
 
