@@ -1719,5 +1719,161 @@ Google SRE 博客能提供很多思路
 
 ### 6.1 功能和架构设计
 
+[Canal 数据同步神器](https://developer.aliyun.com/article/1684616)
+Canal，译意为 “水道 / 管道 / 沟渠”，是阿里巴巴开源的一款基于 MySQL 数据库增量日志解析的工具。它的核心价值在于通过解析 MySQL 的二进制日志（binary log）捕获数据的增量变更，进而为用户提供可靠的增量数据订阅与消费能力，就像一条精准高效的 “数据管道”，让数据库的实时增量变化能够按需流转至下游系统进行处理。
+
+
+拆分服务原则  Separation of concerns 关注分离
+
+读的核心逻辑  cache-Aside 先读取缓存。再读取存储。早期cache rebuild对于重建逻辑。一般使用 read ahead的思路 预读
+
+这里 容易出现 thundering herd现象，怕会OOM , 大量的cache rebuild
+
+回源 出现cache miss的时刻卡夫卡异步回源,然后再去cache rebuild
+
+
+回源释义
+> 用户访问资源时，优先从缓存节点（边缘节点）取数据；
+如果缓存没有、过期、失效，节点就会去原始服务器拉取数据，这个动作就叫回源。
+举个例子（CDN 场景最典型）
+架构：用户 → CDN 节点 → 源站（真正的业务服务器）
+正常访问：资源已缓存，CDN 直接返回，不回源，速度快、减轻源站压力。
+触发回源：
+首次访问、缓存过期、缓存被清理
+文件更新、强制刷新缓存
+此时 CDN 节点主动请求源站获取最新内容，再发给用户，同时更新本地缓存。
+
+
+系统瓶颈 大部分都来自于存储层
+
+
+
+
 ### 6.1 存储和可用性设计
+
+
+
+小巧思 kafak 多个集群。 hash(评论主题) % kafka个数 来决定存储到哪一个kafka
+效果 ： 相同主题的写缓存消息都在同一个队列 可以解决一些分布式同步的问题
+
+redis 增量加载和lazy加载【搭配kafka进行异步更新】
+
+[Zipper Table 拉链存储](https://zhuanlan.zhihu.com/p/104260300)
+
+#### 可用性涉及
+
+热门主题的缓存穿透的情况， 导致大量同进程，跨进程的数据回源到存储层，可能会引起存储过载的情况， 如果只交给同进程内，一个人去做加载存储。
+
+使用 [归并回源的思路](https://pkg.go.dev/golang.org/x/sync/singleflight) (cdn 也是这个思路)
+
+上面在写kafka做 归并同源 或者在查询数据库 -相同操作只有一个人去做
+
+更进一步 在写redis的时候
+进程内缓存 设置 shoft=lived flag ,标记最近有一个人cache rebuild 直接drop 这个操作 或者使用LRU的缓存
+
+cdn 策略 1. 二级节点 2 归并回源
+
+识别热点  使用最小堆 计算 TopK 的数据，自动进行热点识别 然后牺牲一点的一致性去做cache 升级为local cache
+
+最小堆 -> go 的 interface container.heap 
+
+
+## 7 历史记录架构设计
+
+
+### 7.1 功能模块和架构
+
+高TPS（Transactions Per Second） 写入 高qps（Queries Per Second） 读取 业务
+
+HBase数据库 仅读 然后kafka异步去写
+
+[write Back](https://zhuanlan.zhihu.com/p/1908268193698517399)的思路 把状态数据先入分布式缓存，再写回到数据库 这里为了支持 高TPS和高QPS的服务
+
+
+最好系统调用作为瓶颈的时候 可以堆系统调用进行批量打包 pipeline 聚合数据
+
+
+扩展 （除了 write back）
+ * Write Through
+ * Cache Aside
+ * Write Around 
+
+ [文章](https://bbs.huaweicloud.com/blogs/365239)
+
+ | 模式 | 写流程 | 一致性 | 写性能 | 典型使用场景 |
+|------|--------|--------|--------|--------------|
+| Write Through | 缓存 → DB（同步） | 强一致 | 差 | 金融、强一致场景 |
+| Write Back | 只更缓存，异步刷DB | 弱一致（易丢数） | 极好 | 操作系统缓存、Redis 内核 |
+| Write Around | 直写DB，不碰缓存 | 弱一致 | 一般 | 低频大量写入 |
+| Cache Aside | 先更库+删缓存 | 短暂不一致 | 均衡 | 互联网业务主流 |
+
+
+
+这里的历史记录。要进行数据进行聚合。 相同的用户只需要最后一个写入时间 last-write win
+
+redis 单节点 可以十万的并发
+
+kafka 设计是为了高吞吐设计的 超高频的写入并不是最优 ，所以写入前的内存聚合和分片算法比较重要， 按照 uid 进行sharding 数据，写入仍然很大， 这里使用 region sharding . 打包一组数据当作一个 kafka message 比如 uid % 100 数据打包
+
+### 7.2 存储和可用性设计
+
+
+
+#### 可用性
+
+请求做一个无逻辑的聚合能大大减少内网流量。这里聚合越在前面环节 收益越大
+
+经过api Gateway ；流量会触发高频的per-rpc auth 给内网的 identify-service 带来不少压力。 这里可以做长连接，然后只在握手后进行用户级别的身份验证，之后维持身份验证
+
+每天首次登陆的逻辑- 可以做一个 基于[LRU](https://labuladong.online/zh/algo/data-structure/lru-cache/) 的 In-process localcache 
+但是这里 用户分布很广- 很难覆盖。导致命中率很低
+
+越源头解决问题- 往往越简单-效率越高
+这里在客户端维护到本地一个日期值 当前时间和保存的时间对比后可以判断后是否是首次登陆，然后去触发加分逻辑接口 - 边缘计算了
+
+## 8 分布式缓存&分布式事务
+
+### 8.1 分布式缓存
+
+#### 缓存选型
+
+* memcache 简单的KV cache 存储 value 不超过1M 这里吞吐量表现都比较好
+> 这里使用[slab](https://zhuanlan.zhihu.com/p/358891862)方式做内存管理。 存在一定的浪费， 如果大量接近item 建议调整memcache 参数优化每一个slab 增长ratio 空间不足之后 会触发LRU
+
+内存池设计 - 参考案例 nginx [ngx_poll_t](https://zhuanlan.zhihu.com/p/102517155) [tcmalloc](https://www.cnblogs.com/bandaoyu/p/16752421.html)
+
+
+* redis 丰富的数据类型，支持增量方式修改部分数据，比如排行榜集合数组。常用是redis 作为数据索引 redis 因为没有使用内存池，一边会使用jemalloc 来优化内存分配，需要编译的时候使用 [jemalloc](https://www.cnblogs.com/yubo-guan/p/19150502)库代替glib的malloc 使用
+
+
+redis 是单线程（新版本双线程） memcache 是多线程QPS 差异不大，但是吞吐有很大差别， 比如大数据value返回的时候，redis qps 会抖动下降的很快
+
+可以考虑特性， 使用 memcache + reedis 双缓存设计
+
+*  缓存选型 早期使用 [twemproxy](https://zhuanlan.zhihu.com/p/351244798) 作为缓存代理 使用上会有一些痛点
+    * 单进程单线程模型和redis类似，处理大key存在io瓶颈
+    * 二次开发难度高 难以深度集成
+    * 不能自动伸缩 不支持autorebalance 删节点需要重启才能生效
+    * 运维不友好 ，没有控制面板
+
+* 其他的一些代理工具
+ 1. codis 只支持redis 协议，且需要使用patch 版本的redis
+ 2. mcrouter 只支持memcache协议， C开发，和运维集成开发难度高
+
+
+去中心化使用- sidecar 模式-连接 缓存 去掉[LVS](https://blog.csdn.net/lcl_xiaowugui/article/details/81701949)
+
+一致性hash 将数据按照特征映射到一个首尾相接的hash环上
+
+
+#### 缓存模式
+
+#### 缓存技巧
+
+
+
+
+
+### 8.2 分布式事务
+
 
