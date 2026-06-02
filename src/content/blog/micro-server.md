@@ -2067,4 +2067,81 @@ redis 小技巧
 ### 8.2 分布式事务
 
 
+举例 经典的转账问题
+
+
+1. 微服务pay 支付宝扣除1w
+2. 微服务balance 余额包增加1w
+
+单个数据库 我们保证ACID 天然支持事务, 但是这里如果每个系统对应一个独立的数据源, 且可能位于不同的机房, 同事调用多个系统的服务很难保证同事成功, 这里就是跨服务的事务问题
+
+* 事务消息 - 基于每个单独数据库的事务能力, 使用消息,小票在两个微服务后端做事务的一致性
+> 举例, 你在商铺, 先付钱 取小票-- 然后拿着小票去取货,这个就是通过小票这个凭证就能完成最终的事务一致性
+
+* Transaction outbox
+* Polling publisher
+* Transaction log tailings
+* 2PC Message Queue
+
+事务消息根据上面的技术被可靠的持久化 ,这里整个分布式,才会变成最终一致性, 这里被称为。Best Effort 这里最终数据被消费里,才算事务的完成.
+
+
+当事务需要跨平台的情况下, 这里情形不一致, 比如支付宝介入平台的规则, 这里使用回调函数, 来反复确认是否成功,但是这里跨平台可能不太会回滚,因为跨厂商
+
+* 这里要注意这个交易过程中的幂等性, 防止重复调用的过程中 重复发放或者重复扣款的问题(把票证拒绝重复验证出正确返回)
+
+
+  1. Transactionl outbox
+    ```sql
+    BEGIN TRANSACTION
+      UPDATE A SET amount = amount - 10000
+      Where user_id = 1;
+      Insert into msg(user_id,amount,status)
+      VALUE(1,10000,1);
+    END TRANSACTION
+    COMMIT;
+    ```
+使用消息表来判断这里消息是否被消费
+
+2. Polling publisher
+
+定时轮询 msg 表, status =1 的消息统统拿出来消费, 可以按照自增id 排序, 保证顺序消费, 独立一个pay_task服务, 把拖出来的消息pushlish 给我们消息队列, balance 服务自己来消费队列, 或者直接rpc 发送给balance 服务
+
+
+3. Transaction log tailing
+ 上面查询数据库会有挺大时间浪费, 可以通过监听当前表的 binlog 使用canal 触发后面的操作, (实时流式消费)
+
+  这里所有做努力送达的模型, 必须是预扣款(预占资源)的的做法
+
+问题, 这里每一个事务都得需要有一个表-来操作
+
+4. 幂等 (消息重复投递的情况)
+   这里涉及到服务重启的的情况总会有消息重复发送的情况
+ * 解决 : 全局唯一ID + 去重表
+ 消息生产后要生成一个唯一的流水号 ,来记录msg_apply,通俗来说就是账本,记录消息的消费情况,  -- 或者判断状态
+ > 这里一定是消息的消费方自己搞定的
+
+
+
+ 5. 2PC
+ 二阶段提交(Two Phase Commitment Protocol)的情况,这里涉及两个角色
+ * 一个事务协调者 (coordinator): 负责协调多个参与者 进行事务投票和回滚
+ * 镀铬事务参与者(participants) : 即本地事务执行者
+    步骤
+    1. 投票阶段(Voting phase) 先锁定
+    2. 提交阶段(commit phase)
+
+两个本地事务加异步的同步机制 
+RocketMQ 存在长时间不相应,回头确认的方式, 然后没确认成功进行消息丢弃
+
+
+分布式方案的框架 [Seata](https://seata.apache.org/zh-cn/) 实现的2PC 区别于传统的2PC
+
+
+TCC(Try Confirm Cancel)
+
+
+
+
+
 
