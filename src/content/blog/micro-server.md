@@ -2155,6 +2155,12 @@ confirm 封装为 支付的服务  冻结服务 -10000 收款冻结金额 -10000
 * Saga  编排引擎进行调度，相比较而言同步
 
 
+## 9 网络编程
+
+
+
+### 9.1 网络通信协议
+
 linux 排查网络可以用到的命令
 * nload 查看网卡带宽
 * tcpflow 查看某端口发送返回报文. 和 tcpdump 有啥区别
@@ -2408,5 +2414,28 @@ unix net Programs 关于系统调用有两个 select 和 Epoll
 
  在不同的操作系统有自己的多路复用函数 epoll kqueue evport 等
  go 适配了多平台等代码的网络轮询模块 目录在 src/runtime/netpoll_xxx.go
+
+
+
+### 9.2 goim 长连接网关
+
+
+
+### 9.3 IM私信系统
+
+
+## 10 日志&指标&链路追踪
+
+
+## 11 DNS & CDN & 多活
+
+
+## 12 消息队列
+
+
+
+
+## 13 Runtime
+
 
 
