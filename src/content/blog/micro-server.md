@@ -2419,12 +2419,175 @@ unix net Programs 关于系统调用有两个 select 和 Epoll
 
 ### 9.2 goim 长连接网关
 
+[goim](https://github.com/Terry-Mao/goim )
+
+长连接负载均衡
+
+[Katran](https://cloud.tencent.com/developer/news/226764)
+
+cdn 
+
+长连接被杀死的原因
+
+* 长连接进程被杀死
+* nat 超时 
+* 网络状态变化
+* 其他原因（网络状态差 DHCP租期到期）
+
+解决方法
+ * 进程保活
+ * 心跳保活 （阻止nat 超时）
+ * 断线重连（断网之后重新连接）
+
+自适应心跳时间
+* 心条可选区间 min=60s max=300s
+* 心跳增加步长 step=30s 
+* 心跳周期探索 sucess=current +step fail=current - step（成功就下次心条加30s 上次失败就下次短30s）
+
+基本对象
+
+* Bucket 维护当前信息通道和房间的信息， 有独立的Goroutine 和 读写锁优化
+
+* Room 维护了房间的Channel 推送消息进行合并写
+* Channel 一个连接通道 Writer/Reader 就是堆网络Conn 的封装， cliProto 是一个Ring Buffer 保存Room广播或者直接发送过来的消息体
+
+基本虚拟概念  设备（client） 用户 房间
+
+唯一ID设计
+
+* UUID
+* Snowflake ID 生成  （总长64bit）
+  * 1bit 前41bit为时间戳 (毫秒)  10bit(ID) 12bit seqNumber
+  * 衍生 sonyflake ID 生成
+* 基于申请DB步长的生成方式 （一批一批申请配额然后 自己递增做颁发ID）
+* 基于数据库多主集群模式 使用数据库，不同数据库的步长不同保证不重复
+* 基于Redis 或者DB自增ID生成方式
+* 特殊的柜子生成唯一ID
 
 
 ### 9.3 IM私信系统
 
+分类
+* 无状态服务
+* 有状态服务
+* 第三方集成 (小米推送 - 华为推送)
+
+消息同步模型 - 写扩散和读扩散这两种模型
+* 收件箱（inbox）
+* 发件箱子（outbox）
+
+Timeline 模型
+> 按严格递增序号 (SeqId) 线性有序存储消息 / 动态的逻辑存储模型，一条 Timeline = 一条有序消息链表，新数据永远追加尾部，靠位点实现增量拉取，是IM 聊天、微博 / 朋友圈 Feed 流、消息同步底层标准架构。
+
+消息这里更适用于 kv 数据库 尤其是1对1的私聊场景中
+
+
+[LSM(Log-Structured-Merge-Tree)Tree](https://www.cnblogs.com/johnnyzen/p/19235030)
+> HBase, LevelDB, RocksDB 这些NoSQL存储都是采用的LSM树。
+ **写友好的树**
+
+
+* 写扩散 Push（推模型，Fanout On Write） 压力在写-一次写需要写很多数据
+* 读扩散 Pull（拉模型，Fanout On Read） 压力在读-一次从很多地方去读
+* 混合模型 - 推拉混合（主流微博 / 抖音 Feed 方案）
 
 ## 10 日志&指标&链路追踪
+
+服务的可观测性 问题
+
+### 10.1 日志
+
+[log](https://github.com/go-kratos/kratos/blob/main/log/log.go)
+
+日志级别
+ * Info
+ * Warning
+ * Fatal 一般不用 一般后面吊着os.Exit(1)
+    * defer 不会被执行
+    * buffers 不会 flush 包括日志
+    * 临时文件或者目录不会被移除
+    
+    这里不要用fatal 记录日志，而是向调用者返回错误。如果错误一直返回到main.main 这里才是在退出之前处理任何清理操作最合适的位置
+* Error 
+  * 需要注意这里的打印还是往上抛，或者处理降级（打印Warning），尽量不要既打印也往上抛，这里尽量都是抛出到最上层一块打印
+* Debug  只有在开发或者调试的时候关心的事情
+
+[glog](https://pkg.go.dev/github.com/golang/glog#section-readme)
+
+```GO
+if glog.V(2) {
+	glog.Info("Starting transaction...")
+}
+glog.V(2).Infoln("Processed", nItems, "elements")
+```
+
+集中日志系统
+* 收集 采集多种来源的日志数据
+* 传输 稳定传输到集中系统
+* 存储 
+* 分析
+* 告警
+
+ELK 重量级别方案
+
+新增一个 FileBeat 轻量级日志收集Agent 适合在服务器收集后传输给Logstash
+
+其中 Logstash 会有热点问题 这里会有大量的match操作（格式化日志） 消耗cpu 不利于 scale out 这里可以引入消息队列 logstash 前面加一层kafka 进一步，收集端的logstash 替换为 beats 更灵活
+
+设计目标
+接入方式收敛
+日志格式规范
+日志解析对日志系统透明
+高可用,高吞吐.....
+
+规范 [otel 规范](https://opentelemetry.opendocs.io/docs/)
+
+采集
+* logstash 
+    * 监听tcp/udp
+    * 适用于直接通过网络上报日志的方式
+* filebeat:
+    * 直接采集本地生成的日志文件
+    * 适用于日志无法定制化输出的应用
+* logagent
+    * 物理机直接部署 监听unixsocket
+    * 日志系统提供各种语言的sdk
+    * 直接读取本地日志文件
+
+传输
+
+ [flume](https://www.cnblogs.com/XiiX/p/16200835.html) + Kafka 做传输
+ 后来替换为 [flink](https://juejin.cn/post/7317697890110144538) + kafka
+
+ 切分 
+ es官方方案效率过低。后面改为自研 bilib-index 最后还是使用的 flink
+
+ 存储检索
+ ES
+
+ 方案
+ loki
+
+ ### 10.2 链路追踪
+
+ 设计目标
+ * 无处不在的部署
+ * 持续的监控
+ * 低消耗
+ * 应用级透明
+ * 低延迟
+ * 延展性
+
+来源的 paper 
+[Google Dapper](https://research.google/pubs/dapper-a-large-scale-distributed-systems-tracing-infrastructure/)
+
+需要全局的traceid 端到端的透传， 每一层生成一个spanid 用过traceId 将不同的系统的调用日志串联到一起，然后通过spanid 和level 表达节点的父子关系
+
+核心概念
+* TraceID
+* SpanID
+* ParentID
+* Family & Title (服务名和方法名)
 
 
 ## 11 DNS & CDN & 多活
