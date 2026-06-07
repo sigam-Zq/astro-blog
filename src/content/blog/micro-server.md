@@ -2590,11 +2590,264 @@ ELK 重量级别方案
 * Family & Title (服务名和方法名)
 
 
+这里追踪采集的时间不同视角会有不同的时间
+
+* Clent Send -> server Recv -> foo 方法 -> Server Send -> Client Recv
+
+从客户端视角 clent send 到 client Recv 是方法调用执行时间
+
+从服务端视角  server Recv 到 Server Send 是方法调用执行时间 promethus 采集的往往是这个时间
+
+还有就是不同服务器时间误差问题 即使有ntpd（网络时间协议守护进程）， 出现问题需要进行时间修正
+
+植入点  go 使用ctx 传输用中间件和缓存覆盖
+
+[tracing](https://github.com/go-kratos/kratos/blob/v2.9.2/middleware/tracing/tracing.go)
+
+追踪消耗
+ * 监控必然带来一定的性能消耗
+ * 这里需要满足下面的功能
+    * 收集和修改容易在紧急情况被关闭， ID生成耗时，生成Span的等
+    * 修改agent nice 值， 防止在一台高负载服务器上发生cpu竞争
+    > Nice 值：Linux/Unix 系统里进程优先级的参数，全称 nice level。
+作用：控制 CPU 调度权重，值越大，进程越 “谦让”，CPU 优先级越低；值越小（负数），优先级越高。
+
+[消耗扩展论文](https://research.google.com/pubs/pub40378.html?spm=a2c4e.11153940.blogcont514488.20.716311f4Yiao3I)
+
+
+
+ 跟踪采样
+
+ * 固定采样 1/1024 
+
+ * 应对积极采样 高QPS下 采样率自然下降
+
+ * 二级采样 - 当容器节点多的情况 丢弃部分采样- 针对traceID 转为标量Z 然后统一丢弃百分之20
+
+ * 下游采样  
+
+性能优化
+
+1. 避免不必要的串行调用
+2. 缓存读放大
+3. 数据库写放大
+4. 服务接口聚合调用
+
+异常日志集成：
+用户日志集成， 针对特殊用户ID全采样
+
+可以基于这个 做容量预估，推断整体下游服务的调用扇出来精确预估流量在各个系统的占比、
+
+网络热点& 易故障点
+
+openTelemetry
+
+
+opentraing(google Dapper)
+[jaeger](https://jaeger.golang.ac.cn/)
+[zipkin](https://zipkin.io/)
+
+### 10.3 指标
+
+prometheus + Granfanax
+
+1. 延迟
+  这里需要特殊关注 延迟 95 分位（P95）
+  > 一句话：把所有请求延迟从小到大排序，取第 95% 位置的延迟值，就是 P95 延迟。直白理解假设一共 100 次请求，按响应耗时从快到慢排好队：第 1～95 个请求：延迟 ≤ P95 值最后 5 个请求：延迟 ＞ P95 值也就是：95% 的请求都低于这个延迟，只有 5% 的请求更慢。
+
+  长尾问题  绝大多数请求都正常，只有一小部分请求异常缓慢，肉眼看均值没事，但高分位延迟暴涨。
+线上性能优化、稳定性保障，核心就是消灭长尾。
+
+  这里不要仅仅关注 服务端的延迟，还要关注客户端的延迟
+2.  流量 
+  QPS
+
+3. 错误
+  业务报错
+4. 饱和度
+ 是否满载
+
+监控指标内容
+* CPU memory IO network TCP/IP  FD Kernel:context Switch
+* runtime : 各类GC Mem内部状态等
+
+
+node_expor
+go 本身带的 go pprof ptofiling 信息 火焰图
+* watchdog 使用内存CPU 触发自动采集
+
+
+
+
+
 ## 11 DNS & CDN & 多活
+
+### 11.1 DNS CDN
+
+domain Bane System  
+
+问题
+
+
+* local DNS劫持
+* 域名缓存 dns 为了节省带宽， 做缓存，不向上权威dns 请求
+* 解析转发 a DNS 不进行解析， 交给B DNS去解析 导致访问变慢  直接解析到别的 localDNS 去了 
+* localDNS 出口IP NAT导致解析出来IP 不对。或者变慢
+
+解决方案 
+实时监控（做流量异常做检测） 商务推动
+或者手动配置114DNS 或者google pulic DNS
+
+高可用DNS设计
+自建 - 需要准确的使用IP先判断用户归属的地址，然后定一个协议来做调度
+HTTPDNS
+HTTP 用http 协议和DNS服务器进行交互，替换了传统的基于UDP协议的DNS交互，绕开了运营商的localDNS 有效防止的域名劫持，提高了域名解析效率
+
+由于HTTPDNS 直接通过IP访问http 获取服务器A记录地址，不存在向本地运营商询问服务器A记录地址，不存在本地运营商询问domain 解析过程，所以从根本上避免了劫持问题
+
+
+如果只有一个VIP 即可以增加DNS 记录的TTL ,减少解析的延迟
+比如 8.8.8.8 的指向的服务器一定是在美国么？并不是
+anyCast 使用一个ip 将数据路由到最近的一组服务器，通过BGP宣告这个IP但是这里存在两个问题
+google 方案 稳定anyCast
+
+CDN 系统架构
+
+静态资源 缓存在CDN边缘节点
+先查询DNS的域名获取一个IP localDNS 访问 [GLSB](https://zhuanlan.zhihu.com/p/664549174) 返回一个最佳IP (根据用户来源的ip 位置)
+然后这里 返回的最佳IP 背后就是CDN节点
+
+作用
+* 缓存代理
+* 路由加速
+* 安全保护
+* 节省成本 
+
+这里的cdn 实际就是一个nginx 的upstream 应用层和传输层重定向
+* 内容分发形式
+  * PUSH　主动分发技术 内容管理系统主动把内容从源分发到CDN Cache节点
+  * PULL 被动分发计数 命中不了去回源获取　
+
+存储
+随机读 ，顺序写，小文件的分布式存储
+ [COSS环形存储](https://wiki.squid.org.cn/Features/CyclicObjectStorageSystem)
+
+
+ * PUSH 不存在数据不一致问题
+ * PULL 缓存更新不及时 -- （前端发布尽量使用 增量发布 因为客户端一般不会手动刷新）
+    几个在静态CDN对于浏览器很关键的几个请求头
+    * Expires  http 头中指明具体失效的时间 (http/1.0)
+    * Cache Control max-age 在http头按秒执行失效的时间，优先级高于Expires(http/1.1)
+    * Last-Modified/ If-Modified-Slice 文件最后一次修改时间 精度是秒（http/1.0） 需要Cache-Control 过期
+    * Etag 当前资源在服务器的唯一标识（生成规则由服务器决定） 优先度高于Last-Modified
+
+
+静态CDN加速
+  静态域名非主域名 （静态资源不需要cookie 浪费资源）
+  静态域名和收敛
+  静态资源的版本化管理
+  
+http1.1 一个域名只有建立三四个连接，这里多个静态资源域名可以加快静态资源的下载速度
+
+动态CDN加速
+  TCP优化
+  Route optimization 优化请求路线和可靠性
+  Connection management 边缘和源包括之前的CDN 采用长连接
+  On-the-fly comporession 刚离开源的时候使用压缩
+  SSL offkiad 介绍或者减少一些安全监测， 减少一些计算压力
+
+
+cdn 解决数据的最后一公里的问题
+
+
+### 11.2 多活
+ 
+ * 业务分析 ，挑选出来核心的业务，设计异地多活，降低方案的整体的复杂度和实现成本
+ 例如 访问量 核心场景 收入 避免进入所有业务都要多活，分阶段分场景忒近
+ * 数据分类 常见的数据特征分析维度 1 数据量 2 唯一性 3 实时性 4 可丢失性 5 可恢复性 
+ * 数据同步  各个机房的数据同步方案 1存储系统同步2消息队列3重复生成
+ * 异常处理 
+
+ 资源分为三类
+ * Global 资源 多个Zone 共享访问的资源 比如账号资源 单写多读
+ * Multi Zone资源 , 可以按照一定的Zone 进行分片 每个Zone 拥有部分的Shard数据 比如 多写多读
+ * Single Zone 资源 单机房部署业务
+
+ RPO(recovery Point Object)  表示机房级别故障时，未被同步的数据时长，考虑到Mysql 在特殊情况下复制延迟较大的情况下， RPO设置为分钟级别，正常情况下RPO是秒级别
+ RTO(Recovery Target Object) 机房故障情况下 关键流程或者系统切换时间，一般是分钟级别
+ WRT(Work Recovery) 表示故障时， 由于RPO导致未同步异常数据修复完成时长，一般为小时级别
+
+
+* 单活 双活 冷备
+
+机房分区 GZone (全局业务机房分区) CZone (G的只读备份) RZone(数据分片存储的，带有区域分布的)
+
+
+ 饿了么例子
+
+饿了么 业务的多活特点
+1. 业务内聚 因为这里的业务是LBS的 高度依赖于地域
+这里保证 一个订单的商家骑手顾客-都在同一个eZone 内被处理   
+
+2. 可用性优先- 每个eZone 都同步全量数据-保证备份恢复
+
+3. 保证数据正确 确保可用的基础上，需要对数据做保护以避免错误， 在切换和故障的时候，如果发现一个订单在两个机房不一致，会锁定，这笔订单，阻止对它进行修改保证数据的正确性 需要人工介入了
+
+4. 业务可感 。 出现数据不一致的情况会自动发现纠正
+
+这里开发了一个 统一的流量路由层 -这一层负责对客户端过来的API调用，进行路由，把流量导向正确的ezone, API Route (边缘CDN)部署到多i个公有云机房中， 用户就近接入到公有云的API  还可以提升接入质量 核心逻辑是 地理位置 做Sharding
+
+
+阿里 蚂蚁金融 的多活例子
+ CDN 中心机房分发到各个IDC 机房
+* 按买家维度进行数据切片（RZone） 卖家是一写多读 这里使用OceanBase 分布式关系数据库
+
+这里两副本 同步写多个才算成功 ,一个失败后另一个直接成为主节点 保证RPO=0 RTO<1min
+同城容灾  
+异地容灾  这里的延迟特别大 同步延迟很大
+
+流量路由 也是基于CDN 下面挂着 LB1 LB2 负载均衡， uid 植入到cookie 中 映射到对应的RZone, 然后对应的Zone 信息放入cookie中 
+
+
+苏宁多活
+
+* Cell 单独存储空间
+* LDC
+* ....
+
+很有意思的一点  竞争proxy 服务， 比如库存扣减的服务，一般都是单写保证一致，这里可以多个节点单独申请配额，然后本地扣减，来分担写的压力 
+
+facebook 多活
+
+上面的异地写 存在缓存不一致情况的情况， 这里要怎么解决
+
+-  写库前， 对缓存数据marker  然后主库同步从库。 然后缓存订阅的是从库的binlog ,然后更新缓存，之后更新缓存，去掉marker 
+
+扩展
+对象与关联，[The Associations and Objects](https://qian.cx/posts/3C541438-A39F-4F75-84A4-8367E02EB5EA) 分布式数据存储数据库
+[TAO](https://zhuanlan.zhihu.com/p/418144053)
+
+
+
+wechat 朋友圈评论案例
+
+异地机房同步会导致一些因果倒置的问题 A 对B的评论进行回复，Ｃ可能看到顺序有误
+
+这里需要引入概念　[Lamport 逻辑时钟](https://zhuanlan.zhihu.com/p/56146800)
+
+* 进行的评论一定要比当前能看到评论的ID大, 这里多数据节点同步要求同步看到的所有评论数据信息（全量冗余复制）， 保证数据的一致性
+
+bilibili 账号多活
+ 手机号注册情况下， 这里多IDC情况下多写是解决不了了， 这里账号必须是放到全局Zone , 鉴权，登录之类的可以多活，
+
+ 这里连接不同机房，数据不存在，可以降级主动去别的机房去读取或者去核心机房去查询
 
 
 ## 12 消息队列
 
+redis 消息队列 吞吐很差 ，适合小数据量发送， 没有成熟持久化方案
+
+### 12.1 Kafka Topic Partition
 
 
 
