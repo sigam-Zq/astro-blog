@@ -2986,6 +2986,12 @@ producer 分为同步模式和异步模式 同步可以读取配置等message.se
 
 后面引入了 Replication 之后, 同一个Partition可能会有多个 Replication ,这里需要在这些Replication 中选出一个Leader producer 和Consumer 只和这个Leader 进行交互, 其他Replica 作为Follower 从 Leader 中复制数据
 
+这里的Kafka 集群依赖于 zookeeper 集群,来做选举, follower 都在zk 上有一个watch 对应的ephemeral znode  ,当leader宕机ephemeral znode  会自动删除,然后follower 都会尝试创建该节点,创建成功的就是新的leader
+
+有下面缺点
+* 脑裂 split-brain
+* 羊群效应 herd effect
+* Zookeeper负载过重
 
 ## 13 Runtime
 
