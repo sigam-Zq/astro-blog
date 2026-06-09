@@ -2998,10 +2998,84 @@ producer 分为同步模式和异步模式 同步可以读取配置等message.se
 
 ### 13.1 Goroutine 原理 
 
+
+携程消耗栈内存为2k(amd64 Go v1.4之后) 空间 不够会自己扩容
+这里携程是go 自己runtime 进行管理 用户态的线程,
+
+线程是 8M 创建和销毁都有巨大消耗, 是内核级别的交互(trap) posix线程
+
+
+
+
+调度模型 GMP
+G gorouteing 携程 P process (具备mcache的空间) M (OS thred )Machine 
+
+
+原本是只有 GM 的 没有P 这里都是单一全局互斥锁,集中存储状态,M 单独持有mcache 和 stackalloc 
+
+后面引入的P 这里的P 是一个抽象调度概念, 代表M所需的上下文环境们也是处理用户级代码逻辑的处理器,负责衔接M和G的调度上下, GO1.5之后GOMAXPROCS被默认设置为可用的核数 之前默认是1 
+然后给P引入了local queue 的概念, 来让G进行排队,这里的本地队列是一个[LockFree](https://zhuanlan.zhihu.com/p/55178835)的队列,窃取时候用了CAS算法 还有Global queue
+还有一个算法。Work-stealing 调度算法,基于local queue队列的实现也是
+
+
+(异步抢占 注册sigurg信号)
+sysmon调用
+
+
+
+g0 携程是主携程  和别的不一样,有自己的空间负责调度即shedule()函数
+runtime.main() 启动sysmon线程 启动GC携程
+
+依次有以下概念
+
+mcache.  --> mspan ---> mheap (后面是直接向 [arena申请](https://zhuanlan.zhihu.com/p/452697297)) 分别管理不同的大小
+
 ### 13.2 内存分配原理
+
+TCMalloc演变过来
+
+
 
 ### 13.3 GC原理
 
 ### 13.4 Channel原理
+
+
+* 携程安全的
+* FIFO
+
+
+make(chan Task,3)
+内部是 hchan 的对象
+```text
+ circular queue  buf
+ send index      sendx
+ receive index   recvx
+ mutex           lock
+```
+这里本质还是加锁的实现,只是在语义层面被屏蔽了
+这里 make 分配内存在 堆heap上的, 返回的是指向堆区的一个指针
+
+
+no shared memory (except hchan)
+
+Do communicate by sharing memory;
+ instead, share memory by communication(copies)
+
+
+这里的阻塞原理 
+
+ch <- task4
+ gopark--call into then scheduler -> set G1 to waiting  --> removes assocition between G1,M  scheaules a runnable G from the runqueue
+
+ this is neat
+ G1 is blocked as needed but not the OS thread 
+ G1 自己去暂停,没有触发线程切换
+
+ 怎么唤醒 resuming 
+  hchan struct stores waiting senders receivers as well
+  ch <- task4. G2 获取了消息,这里唤醒G1 runNext 指针指向
+  1. create a sudog for itself
+
 
 
