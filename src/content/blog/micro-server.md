@@ -2154,6 +2154,7 @@ confirm 封装为 支付的服务  冻结服务 -10000 收款冻结金额 -10000
 * Event  sourcing  事件驱动，异步事件驱动
 * Saga  编排引擎进行调度，相比较而言同步
 
+[saga 补偿事务](https://cloud.tencent.com/developer/article/2311398)
 
 ## 9 网络编程
 
@@ -2993,6 +2994,24 @@ producer 分为同步模式和异步模式 同步可以读取配置等message.se
 * 羊群效应 herd effect
 * Zookeeper负载过重
 
+优化 
+ kafka 从 Broker 选出一个controller , 所有的parttion的leader 选举都有controller 决定， controller 会将Leader的改变 直接通过RPC的方式（比zookeeeper Queue 的方式更高效）通知续为此作为响应的broker
+
+kafka集群的partition replication 默认自动分配
+
+ISR（in-sync replica） 这个概念的引用主要是为了解决同步副本和异步复制两种方案各自的缺陷
+
+Replicated log 是分布式日志， 主要保证
+* commit log 不会丢失，
+* commit log 在不同机器不一致
+常见主从复制的replicated log 实现
+* raft 基于多节点的ack 节点一般被称为 leader/follorwe kafka 将要使用
+* pacificA 基于所有节点的ack  节点一般为成为 primary/ secondary kafka正在使用
+* bookkeeper 基于个数节点的ack 节点一般称为writer/bookie pulsar 正在使用
+
+Kafka 在Zookeeper 中动态维护了一个ISR (in-sync replicas)
+
+
 ## 13 Runtime
 
 
@@ -3032,7 +3051,9 @@ mcache.  --> mspan ---> mheap (后面是直接向 [arena申请](https://zhuanlan
 
 ### 13.2 内存分配原理
 
-TCMalloc演变过来
+TCMalloc演变过来 
+
+栈从上往下增长  堆从下往上增长 堆空间要比栈空间金贵，消耗大
 
 
 
@@ -3074,8 +3095,96 @@ ch <- task4
 
  怎么唤醒 resuming 
   hchan struct stores waiting senders receivers as well
-  ch <- task4. G2 获取了消息,这里唤醒G1 runNext 指针指向
-  1. create a sudog for itself
+  ch <- task4. G2 获取了消息,这里唤醒G1 runNext 指针指向 被唤醒的G1
+  1. create a [sudog](https://cloud.tencent.com/developer/ask/sof/1005902) for itself
 
 
+发送阻塞 就 put a sudog in the recvq 然后更改自己状态为 pause(gopark G2)
+ 这里唤醒的时候是就没有加锁然后唤醒的操作了，这里是直接 一方直接操作另一方的栈了直接
 
+ We now understand channels(sorta)
+ * goroutine-safe  hchan mutex
+ * store values  pass in FIFO   copying into an out of hchan buffer
+ * can cause goroutines to pause and resume
+      * hchan sudog queues
+      * calls into the runtime scheduler( gopark goready)
+
+
+unbuffered channels
+
+unbufferred channels always work like the 'direct send' case: 
+  * receiver first --> sender writes to receiver's stack
+  * sender first --> receiver receives directly from the sudog
+
+
+select(general-case)
+  * all channels locked
+  * a sudog is put in the sendq/recvq queues of all channels
+  * channels unlocked and the select-ing G is paused
+  * CAS operation so there's one winning case
+  * resuming mirrors the pause sequence
+
+----
+翻译
+無緩衝通道
+
+無緩衝通道的工作方式始終與「直接傳送」模式相同：
+
+* 接收方優先 --> 發送方寫入接收方的堆疊
+
+* 發送方優先 --> 接收者直接從 sudog 接收數據
+
+選擇（一般情況）
+
+* 所有頻道鎖定
+
+* sudog 放入所有通道的 sendq/recvq 佇列
+
+* 通道解鎖，選擇 G 暫停
+
+* CAS 操作，因此只有一個成功的情況
+
+* 恢復過程與暫停順序相同
+
+
+simplicity and performance
+
+
+simplicty
+ que with a lock perferred to lock-free implementation:
+"The performance improvement does not materialize from the air , it comes with code complexity increase" -dvyokov
+
+簡潔的佇列，帶鎖的實作優於無鎖實作：
+「效能提升並非憑空而來，而是伴隨著程式碼複雜度的增加。」——dvyokov
+
+performance
+
+calling into the runtime scheduler 
+ * OS thread remains unblocked
+
+cross-goroutine stack reads and writes.
+  * goroutiine wake-up path is lockless,
+  * otentially fever memory copies
+
+
+need to account for memory management;
+
+garbage collection, stack-shrinking
+
+呼叫運行時調度器
+
+* 作業系統線程保持暢通
+
+跨 goroutine 的棧讀寫
+
+* goroutine 喚醒路徑無鎖
+
+* 可能存在頻繁的記憶體複製
+
+需要考慮記憶體管理；
+
+垃圾回收、堆疊收縮
+
+astute trade-offs between simplicity and performance
+
+the noblest pleasure is the joy of understanding - leonardo da Vinci
