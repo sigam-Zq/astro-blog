@@ -3012,6 +3012,44 @@ Replicated log 是分布式日志， 主要保证
 Kafka 在Zookeeper 中动态维护了一个ISR (in-sync replicas)
 
 
+
+每个kafka副本都有两个重要的属性, LEO(Log End Offset ) 和 HW (High Watermark) 注意是所有的副本, 而不是所有的副本 而不只是Keader副本
+
+LEO 即日志末端位移, 记录了该副本底层日志中下一条 消息的位移值 注意是下一条消息,也就是睡哦 如果LEO =10 ,表示该副本保存了10条记录 位移范围是 [0,9]
+
+HW 水位值 对于同一副本对象而言, 其HW值不会大于 LEO值, 小于等于 HW值所有消息都被认为是已备份的(replicated) .同理, leader 副本和 follower 副本 更新是有区别的
+
+这里的leader 不光存储自己的LEO 还存储remote LEO 别人的LEO
+
+flower 用长轮询去向leader拿数据, 然后混合 操作LEO,HW修改的操作 然后这里有多轮操作
+HW 更新后, 才正式对consumer 可见, 不是LEO
+
+
+这里也会有一些case会导致数据的丢失和数据不一致的情况, 主partition挂掉同步的情况下
+
+
+Producer required.acks. 0 1 -1 
+对应不同的数据可靠性
+
+request.required.acks 的参数需要配合 min.insync.replicas 这个参数( Broker 或者 Topic 层面进行设置)配合才会发挥最大的功效
+
+
+数据不回丢失的设置。request.required.acks=-1(kafka 默认为同步 produceer.type=sync) 的发送模式, relication.factor>=2 且 min.insync.replicas>=2的情况下,不会丢失数据
+
+
+kafka 高性能
+架构层面 
+
+ * Partition 级别并行: Broker Disk Consumer 端
+ * ISR
+
+IO层面
+  * Batch 读写 (和磁盘顺序IO 一起 利用了 buffer IO 和 page cache 的机制)
+  * 磁盘顺序IO
+  * Page Cache
+  * Zero Copy
+  * 压缩
+
 ## 13 Runtime
 
 
@@ -3058,6 +3096,49 @@ TCMalloc演变过来
 
 
 ### 13.3 GC原理
+
+主流GC 两个思路
+* 引用计数
+* 追踪式垃圾回收
+
+GO 当前使用的三色标级法就是属于追踪垃圾回收算法的一种
+
+Mark & Sweep 两个阶段 Mark 标记 和 Sweep 清除 两个阶段,所以也被叫为 Mark-Sweep 垃圾回收算法
+
+STW (stop the world) gc阶段需要停止所有的mutator 以确认当前的引用关系, 这便是很多人对GC担心的来源
+
+Root
+根对象  是mutator 不需要其他对象就能直接访问到的对象,比如全局对象,栈对象中的数据, 通过Root对象,可以追踪到其他存活的对象
+
+
+Go1.1 STW是秒级 mark 和Sweep 都要 STW
+
+GO1.3 优化, 只在mark 阶段 STW 标记完成的 Sweep 和mutator 并行
+
+GO1.5 实现了三色标记, 这里整体不回STW  但是在mark 前后存在一个写屏障和删除屏障。Dijkstra写屏障 还有一个 Yuase删屏障
+写屏障是针对堆上指针的, 栈上由于计算的密集和引用关系的变化很快,需要有一个 re-scan的操作(10-100ms)的重扫,且这个过程需要短暂的STW,
+写屏障开始标记的时候不需要STW,结束的时候需要STW来重新扫描栈, 标记栈上引用的白色对象存活. Yuasa的删除屏障则需要在GC开始时STW扫描堆栈来记录初始快照, 这个过程保护所有存活对象, 结束时无需STW
+
+GO1.8 结合了插入屏障和删除屏障, 有了混合屏障 - Write Barrier  这里其实是变形的弱三色不变式, 这里也是只在堆上做, 栈上只需要在开始时扫描各个goroutine的栈,并使其变黑一直保持,这个过程不需要 STW 标记结束后,因为栈始终是黑色的,这里也无需进行re-scan操作了,减少了STW的时间
+
+
+
+每个span 中有一个名为 gcmarkBits的位图属性, 该属性跟踪扫描,并将相应的位设置为1 表示存活和需要回收之类。还有一个 bitmap allocBits 表示上一次GC之后每一个Object的分配情况, 1,表示以分配, 0表示未使用或者释放
+> 内部还使用 unint64 allocCache(deBruijn) 加速寻找freeobject
+
+
+Sweep 两种方式来清理内存
+bgsweep()
+* 后台启动一个wroker 等待清理 一个一个mspan处理
+
+* 申请内容的时候lazy触发
+
+
+Pacing
+* 运行时 GC Percentage 的配置选项,默认为100
+* 如果超过2分钟没有触发,会强制触发GC
+
+
 
 ### 13.4 Channel原理
 
