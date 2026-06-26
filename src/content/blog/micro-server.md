@@ -2153,6 +2153,8 @@ confirm 封装为 支付的服务  冻结服务 -10000 收款冻结金额 -10000
 
 * Event  sourcing  事件驱动，异步事件驱动
 * Saga  编排引擎进行调度，相比较而言同步
+  * 命令协调方案 (存在一个中央协调器 Orchestrator 简称OSO)
+  * 事件编排的方式(Event Choreographyo)
 
 [saga 补偿事务](https://cloud.tencent.com/developer/article/2311398)
 
