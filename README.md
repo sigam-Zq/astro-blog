@@ -76,3 +76,13 @@
     -   在 [tina.io](https://tina.io/) 注册并关联你的 GitHub 仓库。
     -   获取 `clientId` 和 `token` 并配置为环境变量。
     -   上线后，你就可以在你的线上域名 `/admin` 路径下直接编辑并自动提交代码。
+
+## 📄 静态 HTML 页面 (`public/html/`)
+
+如需挂载不走模板的纯静态 HTML（落地页、临时说明页、外链包装等），直接把 `.html` 文件放进 `public/html/` 即可：
+
+-   源目录：`public/html/`
+-   线上访问：`https://blogs.zqsrh.com/html/<文件名>.html`
+-   索引页：`public/html/index.html`（**手写维护**，新增文件后同步追加链接）
+-   机制：Astro 构建时 `public/` 原样复制到 `dist/`，HTML 文件本身不经任何处理
+-   工作流：写文件 → `git add public/html/foo.html && git commit && git push` → 随现有 CI 自动上线

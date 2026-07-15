@@ -1,5 +1,88 @@
 [
   {
+    "id": "three-js-skybox",
+    "title": "Three.js 天空盒 (Skybox) 入门:从零搭一个可交互的 3D 场景",
+    "description": "用 Three.js + OrbitControls + CubeTextureLoader 做一个能鼠标拖拽环顾、滚轮缩放的天空盒演示,涵盖 Scene、Camera、Renderer、PBR 材质、光照与动画循环。",
+    "pubDate": "Jul 15 2026",
+    "heroImage": "/blog-placeholder-3.jpg",
+    "tags": [
+      "Three.js",
+      "WebGL",
+      "前端",
+      "3D"
+    ],
+    "url": "/blog/three-js-skybox/"
+  },
+  {
+    "id": "go-blogs",
+    "title": "go开箱即用变量探究",
+    "description": "go开箱即用变量探究 学习",
+    "pubDate": "2026-05-24T09:01:05.569Z",
+    "heroImage": "/blog-placehoder-7.jpg",
+    "tags": [],
+    "url": "/blog/go-blogs/"
+  },
+  {
+    "id": "micro-server",
+    "title": "微服务学习",
+    "description": "微服务学习",
+    "pubDate": "2026-05-20",
+    "tags": [],
+    "url": "/blog/micro-server/"
+  },
+  {
+    "id": "sandbox",
+    "title": "隔离沙箱技术调研",
+    "description": "AI agent大环境的下的沙箱隔离技术",
+    "pubDate": "2026-05-20",
+    "tags": [],
+    "url": "/blog/sandbox/"
+  },
+  {
+    "id": "dns-en",
+    "title": "DNS泄漏防护",
+    "description": "DNS泄漏防护-使用加密dns",
+    "pubDate": "2026-05-15T10:32:28.000Z",
+    "tags": [],
+    "url": "/blog/dns-en/"
+  },
+  {
+    "id": "mit6.824",
+    "title": "MIT 6.824 课程学习",
+    "description": "MIT 6.824 课程学习",
+    "pubDate": "2026-05-13T19:44:05.569Z",
+    "heroImage": "/blog-placehoder-7.jpg",
+    "tags": [],
+    "url": "/blog/mit6.824/"
+  },
+  {
+    "id": "frontend-t",
+    "title": "前端概念学习",
+    "description": "前端概念SSG 学习",
+    "pubDate": "2026-05-13T10:54:05.569Z",
+    "heroImage": "/blog-placehoder-7.jpg",
+    "tags": [],
+    "url": "/blog/frontend-t/"
+  },
+  {
+    "id": "go-gc-optimization",
+    "title": "性能优化go代码",
+    "description": "关于代码的性能优化思考",
+    "pubDate": "2026-05-12T13:44:05.569Z",
+    "heroImage": "/blog-placehoder-7.jpg",
+    "tags": [],
+    "url": "/blog/go-gc-optimization/"
+  },
+  {
+    "id": "wb",
+    "title": "wasn学习",
+    "description": "WebAssembly 学习",
+    "pubDate": "2026-05-11T10:44:05.569Z",
+    "heroImage": "/blog-placehoder-7.jpg",
+    "tags": [],
+    "url": "/blog/wb/"
+  },
+  {
     "id": "plugin-s",
     "title": "动态插件系统调研",
     "description": "go动态加载调度插件技术调研",
@@ -194,5 +277,13 @@
     "heroImage": "/blog-placeholder-3.jpg",
     "tags": [],
     "url": "/blog/first-post/"
+  },
+  {
+    "id": "go-gen",
+    "title": "",
+    "description": "",
+    "pubDate": "",
+    "tags": [],
+    "url": "/blog/go-gen/"
   }
 ]
