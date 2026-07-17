@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Three.js 天空盒 (Skybox) 演示</title>
+  <style>
+    /* ============ 页面基础样式 ============ */
+    /* html/body: 占满整个视口 */
+    /*   margin: 0     → 移除浏览器默认 8px 外边距, 防止出现白边 */
+    /*   height: 100%  → 让 body 高度等于视口高度 (否则默认 0, 子元素无法撑开) */
+    /*   background: #000 → 黑色底色, 与 Three.js 默认背景一致, 加载期间不刺眼 */
+    /*   overflow: hidden → 禁用页面滚动条, 防止鼠标拖动 3D 时页面跟着滚 */
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+
+    /* ============ 画布样式 ============ */
+    /* canvas: Three.js 渲染器自动创建的 <canvas> 元素 */
+    /*   display: block          → 块级显示, 避免 inline 元素底部 4px 留白 */
+    /*   touch-action: none      → 禁用浏览器默认触摸手势 (双指缩放/滚动), 让 Three.js 自己处理 */
+    /*   user-select: none       → 防止鼠标拖动时意外选中文本 */
+    canvas { display: block; touch-action: none; user-select: none; }
+
+    /* ============ 顶部信息条 ============ */
+    /* #info: 显示在画面顶部的文字提示 */
+    /*   position: absolute   → 绝对定位, 脱离文档流, 不挤压画布 */
+    /*   top: 10px            → 距视口顶部 10px */
+    /*   width: 100%          → 横向占满视口 */
+    /*   text-align: center   → 文字居中 */
+    /*   z-index: 100         → 层级高于画布 (canvas 默认 z-index: auto), 保证可见 */
+    /*   color: #fff          → 白色文字, 在深色背景上清晰 */
+    /*   font-family: monospace → 等宽字体, 看起来更"技术" */
+    /*   pointer-events: none → 鼠标事件透传, 不挡 OrbitControls 拖拽 */
+    #info {
+      position: absolute;
+      top: 10px;
+      width: 100%;
+      text-align: center;
+      z-index: 100;
+      display: block;
+      color: #fff;
+      font-family: monospace;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">天空盒 Skybox 演示 · 鼠标拖拽环顾四周 / 滚轮缩放</div>
+
+<!-- ============ importmap: 把裸模块名映射到 CDN 上的实际文件 ============ -->
+<!--
+  为什么需要 importmap?
+    ES Module 规范里, import 后面只能写:
+      1. 绝对 URL (https://...) 或相对路径 (./foo.js)
+      2. 裸模块名 'three' (浏览器原生不认识)
+    importmap 就是给浏览器一张"裸名 → URL"的查找表, 让 'three' 能被解析。
+  必须放在所有 <script type="module"> 之前。
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+/* ============================================================
+ * 模块导入区
+ * ============================================================ */
+
+// import * as THREE: 把 three 库的所有导出打包成一个命名空间对象 THREE
+// 用法: new THREE.Scene() / THREE.MathUtils.degToRad(90) / THREE.SRGBColorSpace
+import * as THREE from 'three';
+
+// OrbitControls: 鼠标拖拽旋转相机 + 滚轮缩放 + 右键平移
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// lil-gui (dat.gui 的官方继任者): 轻量级参数面板
+//   new GUI()                    → 创建面板
+//   gui.addFolder('名字')         → 创建子文件夹
+//   folder.add(obj, key, options) → 下拉选择
+//   folder.add(obj, key, min, max) → 滑块控件
+//   .name('中文')                 → 控件显示名
+//   .onChange(fn)                 → 值变化回调
+import { GUI } from 'https://unpkg.com/three@0.160.0/examples/jsm/libs/lil-gui.module.min.js';
+
+
+/* ============================================================
+ * 1. 场景 (Scene)
+ * ============================================================ */
+// 场景是所有 3D 对象的"容器", 类似电影的布景。
+// 没有 scene, 任何 mesh / light / camera 都无处安放。
+const scene = new THREE.Scene();
+
+
+/* ============================================================
+ * 2. 相机 (Camera)
+ * ============================================================ */
+// PerspectiveCamera 模拟人眼透视: 离镜头近的物体大, 远的物体小。
+//
+// 四个参数详解:
+//   ① fov (Field of View, 视野角度)
+//        - 单位: 度
+//        - 含义: 相机垂直方向的可见角度范围
+//        - 75°  → 标准视角, 接近人眼舒适区
+//        - 30°  → 望远镜头效果, 物体被"放大", 视野窄
+//        - 100° → 广角镜头, 视野宽阔但边缘会拉伸变形
+//
+//   ② aspect (宽高比)
+//        - 单位: 无量纲比值
+//        - 含义: 渲染画面的 width / height
+//        - 算错会导致画面被压扁/拉伸
+//        - 这里直接用 window.innerWidth / innerHeight, 保证窗口多大画布多大
+//
+//   ③ near (近裁切面距离)
+//        - 单位: Three.js 世界单位 (与相机距离 1:1)
+//        - 含义: 离相机近于此距离的物体不渲染 (被裁掉)
+//        - 0.1 是常用值, 配合 far 不要跨度过大
+//
+//   ④ far (远裁切面距离)
+//        - 单位: 同上
+//        - 含义: 离相机远于此距离的物体不渲染
+//        - 1000 → 一般场景够用
+const camera = new THREE.PerspectiveCamera(
+  75,                                     // ① fov
+  window.innerWidth / window.innerHeight, // ② aspect
+  0.1,                                    // ③ near
+  1000                                    // ④ far
+);
+
+// 相机初始位置: 原点附近, 抬高一点
+//   x=0, y=2, z=0 → 站在原点附近, 略高
+camera.position.set(0, 2, 0);
+
+
+/* ============================================================
+ * 3. 渲染器 (WebGLRenderer)
+ * ============================================================ */
+// 渲染器负责把 scene + camera 计算出的画面, 用 WebGL 绘制到 <canvas> 上。
+//
+// 构造参数详解:
+//   { antialias: true }
+//     antialias = 抗锯齿。开启后, 物体边缘的"阶梯状像素"会被平滑。
+//     代价: 多采样缓冲, GPU 开销略增。
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+// setSize(width, height, updateStyle):
+//   ① width  → 画布像素宽度
+//   ② height → 画布像素高度
+//   ③ updateStyle (可选, 默认 true) → 是否同步更新 canvas.style.width/height (CSS 尺寸)
+//   传 window.innerWidth/Height 让画布铺满整个浏览器视口
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+// setPixelRatio(ratio): 适配高清屏 (Retina / 移动端)
+//   ① ratio → 设备像素比
+//   普通屏 devicePixelRatio = 1; Retina = 2; 部分手机 = 3
+//   不设的话, Retina 屏上画面会发虚 (1 物理像素被强行拉成 2x2)
+//   设太高(>2) 又费性能, 所以直接传 window.devicePixelRatio 最稳
+renderer.setPixelRatio(window.devicePixelRatio);
+
+// outputColorSpace: 输出色彩空间
+//   SRGBColorSpace → 匹配显示器标准 sRGB, 颜色看起来"正常"
+//   不设的话, Three.js 早期默认 LinearSRGB, 贴图会偏暗偏灰
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+// 把渲染器生成的 <canvas> 元素挂到 body, 否则画面无处可见
+document.body.appendChild(renderer.domElement);
+
+
+/* ============================================================
+ * 4. 鼠标交互控制器 (OrbitControls)
+ * ============================================================ */
+// OrbitControls 让相机围绕一个目标点旋转/缩放, 适合 3D 场景浏览。
+//
+// 构造参数详解:
+//   ① camera: 要被控制的相机对象 (即上面那个 PerspectiveCamera)
+//   ② domElement: 监听鼠标/触摸事件的 DOM 元素
+//      - 必须是 renderer.domElement, 不能是 document.body
+//      - 否则鼠标点到 GUI 面板上也会触发相机旋转, 体验崩坏
+const controls = new OrbitControls(camera, renderer.domElement);
+
+// enableDamping: 开启阻尼/惯性
+//   true → 松开鼠标后相机会"滑"一段距离停下, 比硬停更自然
+controls.enableDamping = true;
+
+// dampingFactor: 阻尼系数, 范围 (0, 1)
+//   越小 → 滑得越远越久 (感觉更"滑")
+//   越大 → 很快停下 (感觉更"涩")
+//   0.08 是常用平衡点
+controls.dampingFactor = 0.08;
+
+// target: 相机围绕旋转的目标点 (默认 (0,0,0))
+//   设为相机附近 (0, 2, 0), 让旋转感觉"环顾四周"而不是"绕地面转"
+controls.target.set(0, 2, 0);
+
+// minDistance: 限制相机到 target 的最近距离
+//   0.5 → 防止滚轮缩放到穿进物体内部
+controls.minDistance = 0.5;
+
+// maxDistance: 限制相机到 target 的最远距离
+//   50 → 防止飞出场景外
+controls.maxDistance = 50;
+
+// maxPolarAngle: 相机绕 target 旋转时的最大极角 (与 Y+ 轴的夹角)
+//   Math.PI * 0.9 ≈ 162° → 接近水平, 防止相机穿到地面以下
+//   Math.PI = 180° → 相机在 target 正下方
+controls.maxPolarAngle = Math.PI * 0.9;
+
+
+/* ============================================================
+ * 5. 加载 6 面立方体贴图 (Skybox)
+ * ============================================================ */
+// CubeTextureLoader: 专门加载 6 面立方体贴图的加载器
+//
+// .load(urls, onLoad, onProgress, onError):
+//   ① urls (Array): 6 张图片的 URL 数组
+//      顺序必须严格按 [px, nx, py, ny, pz, nz]
+//      对应方向: 右(+X) / 左(-X) / 上(+Y) / 下(-Y) / 前(+Z) / 后(-Z)
+//   ② onLoad (Function): 加载成功回调, 参数为 CubeTexture
+//   ③ onProgress (Function): (可选) 加载进度回调
+//   ④ onError (Function): (可选) 加载失败回调
+//
+// 文件名 → 立方体面映射:
+//   right.jpg  → px (+X, 右)
+//   left.jpg   → nx (-X, 左)
+//   top.jpg    → py (+Y, 上)
+//   bottom.jpg → ny (-Y, 下)
+//   front.jpg  → pz (+Z, 前)
+//   back.jpg   → nz (-Z, 后)
+const skyboxUrls = [
+  '/img/pp001_skybox/right.jpg',   // ① px (+X, 右)
+  '/img/pp001_skybox/left.jpg',    // ② nx (-X, 左)
+  '/img/pp001_skybox/top.jpg',     // ③ py (+Y, 上)
+  '/img/pp001_skybox/bottom.jpg',  // ④ ny (-Y, 下)
+  '/img/pp001_skybox/front.jpg',   // ⑤ pz (+Z, 前)
+  '/img/pp001_skybox/back.jpg',    // ⑥ nz (-Z, 后)
+];
+
+const cubeTextureLoader = new THREE.CubeTextureLoader();
+
+// 加载 6 面贴图 (异步), 完成后设为场景背景
+// ponytail: 6 张图全部加载完才会触发 onLoad
+cubeTextureLoader.load(
+  skyboxUrls,
+  (cubeTexture) => {
+    // colorSpace: 设为 SRGB 让贴图颜色显示准确
+    //   CubeTexture 默认 NoColorSpace, 手动设 SRGB 更亮更接近原图
+    cubeTexture.colorSpace = THREE.SRGBColorSpace;
+
+    // 把立方体贴图设为场景背景 → 实现天空盒效果
+    // scene.background 接受多种类型:
+    //   ① THREE.Color        → 纯色背景
+    //   ② THREE.Texture      → 2D 图片背景
+    //   ③ THREE.CubeTexture  → 6 面立方体贴图 (本 demo 用这个)
+    scene.background = cubeTexture;
+
+    // 把加载好的 cubeTexture 暴露到全局, 方便 animate 循环里旋转它
+    window._skyboxTexture = cubeTexture;
+
+    console.log('✅ 天空盒 6 面贴图加载成功');
+  },
+  undefined,   // ③ onProgress: 进度回调, 这里不需要
+  (error) => { // ④ onError: 加载失败回调
+    console.error('❌ 天空盒贴图加载失败:', error);
+    document.getElementById('info').textContent = '天空盒加载失败, 请检查 /img/pp001_skybox/ 目录';
+  }
+);
+
+
+/* ============================================================
+ * 6. CubeTexture 构造参数详解 (参考, 实际由 CubeTextureLoader.load 自动创建)
+ * ============================================================ */
+// THREE.CubeTexture: 立方体贴图, 由 6 张 2D 纹理组成, 包裹成"盒子"
+//   相机看向哪个方向, 就显示对应面的纹理
+//   这是 Skybox 的核心: 把场景背景设为一个 CubeTexture
+//
+// 构造参数详解:
+//   new THREE.CubeTexture(images, mapping, wrapS, wrapT, magFilter, minFilter, format, type, anisotropy, colorSpace)
+//
+//   ① images (Array): 6 张图片的数组
+//      顺序必须是 [px, nx, py, ny, pz, nz]
+//      顺序错了会导致"左边的画面出现在右边"等诡异现象
+//      每张图可以是 HTMLImageElement / HTMLCanvasElement / 已经是 Texture 也行
+//
+//   其他参数用默认值即可:
+//     mapping        = CubeReflectionMapping (立方体反射映射)
+//     wrapS/wrapT    = ClampToEdgeWrapping (边缘不重复)
+//     magFilter      = LinearFilter (放大时线性插值)
+//     minFilter      = LinearMipmapLinearFilter (缩小时三线性)
+//     format         = RGBAFormat
+//     type           = UnsignedByteType
+//     anisotropy     = 1
+//     colorSpace     = NoColorSpace (注意! CubeTexture 默认 NoColorSpace, 与普通 Texture 不同)
+//
+// ponytail: 上面的 CubeTextureLoader.load 已经返回一个现成的 CubeTexture
+//           并赋值给 scene.background, 所以这里不需要手动 new THREE.CubeTexture()
+
+
+/* ============================================================
+ * 7. 添加一个 3D 物体 (用于观察天空盒背景)
+ * ============================================================ */
+
+/* -------- 几何体 (Geometry): 描述"形状"——顶点位置、面索引 -------- */
+// BoxGeometry: 长方体/正方体
+//
+// 六个参数详解:
+//   ① width (宽)     → 沿 X 轴的长度
+//   ② height (高)    → 沿 Y 轴的长度
+//   ③ depth (深)     → 沿 Z 轴的长度
+//   ④ widthSegments  → 沿 X 方向切多少段 (默认 1, >1 时每个面会被分成多个小面, 便于后续做顶点变形)
+//   ⑤ heightSegments → 沿 Y 方向切多少段 (默认 1)
+//   ⑥ depthSegments  → 沿 Z 方向切多少段 (默认 1)
+//
+// 这里 (1, 1, 1) → 边长为 1 的正方体, 6 个面 12 个三角形
+const geometry = new THREE.BoxGeometry(
+  1,    // ① width
+  1,    // ② height
+  1     // ③ depth
+  // ④⑤⑥ 省略, 默认各 1 段
+);
+
+/* -------- 材质 (Material): 描述"外观"——颜色、反光、粗糙度 -------- */
+// MeshStandardMaterial: PBR 材质, 受光照影响, 有立体感
+//
+// 参数对象详解:
+//   { color, roughness, metalness }
+//     color      → 本体颜色 (漫反射/反照率), 十六进制
+//                  接受三种写法: 0x4488ff (数字) / "#4488ff" (字符串) / new THREE.Color()
+//     roughness  → 表面粗糙度 0~1
+//                  0   = 镜面一样光滑, 反射清晰 (像金属/玻璃)
+//                  0.5 = 半哑光, 有点反光但不锐利 (像塑料/木头)
+//                  1   = 完全粗糙, 无高光 (像石膏/粉笔)
+//     metalness  → 金属度 0~1
+//                  0 = 非金属 (电介质, 如塑料/木头/石头)
+//                  1 = 金属 (如铁/铜/金)
+//                  0.3 = 带一点金属质感
+const material = new THREE.MeshStandardMaterial({
+  color: 0x4488ff,    // ① color: 蓝色
+  roughness: 0.4,     // ② roughness: 半哑光
+  metalness: 0.3,     // ③ metalness: 带一点金属质感
+});
+
+/* -------- 网格物体 (Mesh): 把材质"贴"到几何体上 -------- */
+// Mesh 构造参数:
+//   ① geometry: 形状数据 (上面的 BoxGeometry)
+//   ② material: 外观数据 (上面的 MeshStandardMaterial)
+//
+// 渲染时 GPU 会:
+//   1. 读取 geometry 的顶点/三角形
+//   2. 套用 material 的颜色/光照规则
+//   3. 经过 camera 的投影矩阵画到画布上
+const mesh = new THREE.Mesh(geometry, material);
+
+// position: 物体在世界坐标系中的位置
+//   x=0   → 原点 x
+//   y=0.5 → 底面贴 y=0 (立方体边长 1, 中心在 0.5)
+//   z=-3  → 物体在前方 3 个单位处 (相机看向 -z)
+mesh.position.set(0, 0.5, -3);
+
+scene.add(mesh);
+
+
+/* ============================================================
+ * 8. 地面 (用于增强空间感)
+ * ============================================================ */
+// GridHelper: 网格辅助线, 帮助观察相机移动和地面位置
+//
+// 构造参数详解:
+//   new THREE.GridHelper(size, divisions, colorCenterLine, colorGrid)
+//   ① size              → 网格总大小 (单位), 整个网格是 size × size 的正方形
+//   ② divisions         → 分割数, 每格大小 = size / divisions
+//   ③ colorCenterLine   → 中心线颜色 (默认 0x444444)
+//   ④ colorGrid         → 网格线颜色 (默认 0x888888)
+//
+// 这里 (50, 50, 0x666666, 0x444444) → 50×50 大小, 50 个分割, 每格 1 单位
+const gridHelper = new THREE.GridHelper(
+  50,            // ① size
+  50,            // ② divisions
+  0x666666,      // ③ colorCenterLine (中灰)
+  0x444444       // ④ colorGrid (深灰)
+);
+scene.add(gridHelper);
+
+// // 真实地面 mesh (用于接收阴影)
+// // PlaneGeometry(width, height, widthSegments, heightSegments):
+// //   ① width         → 沿 X 轴的长度
+// //   ② height        → 沿 Y 轴的长度 (注意: 平面默认在 XY 平面内, 朝向 Z+)
+// //   ③ widthSegments → (可选, 默认 1) 沿 X 方向分割数
+// //   ④ heightSegments→ (可选, 默认 1) 沿 Y 方向分割数
+// //   这里 (50, 50) → 足够大的地面
+// const groundGeo = new THREE.PlaneGeometry(
+//   50,   // ① width
+//   50    // ② height
+// );
+
+// // MeshStandardMaterial: PBR 地面材质
+// //   color: 0x333333 → 深灰色地面
+// //   roughness: 1.0  → 完全粗糙, 不反光
+// //   metalness: 0.0  → 非金属
+// const groundMat = new THREE.MeshStandardMaterial({
+//   color: 0x333333,    // ① color: 深灰色
+//   roughness: 1.0,     // ② roughness: 完全粗糙
+//   metalness: 0.0,     // ③ metalness: 非金属
+// });
+
+// // Mesh(geo, mat): 网格物体 = 几何体 + 材质
+// const ground = new THREE.Mesh(groundGeo, groundMat);
+
+// // 平面默认朝 Z+, 旋转 90° (-PI/2) 让它朝上 (朝 Y+), 当作地面
+// // rotation.x = -Math.PI / 2 → 绕 X 轴旋转 -90°
+// ground.rotation.x = -Math.PI / 2;
+
+// // 略低于 y=0, 避免与 GridHelper 的线框 Z-fight (闪烁)
+// ground.position.y = -0.01;
+
+// // 接收其他物体投来的阴影
+// ground.receiveShadow = true;
+
+// scene.add(ground);
+
+
+/* ============================================================
+ * 9. 灯光
+ * ============================================================ */
+
+// AmbientLight(环境光): 无方向、无衰减、无阴影, 均匀照亮所有面的"全局底光"
+//
+// 构造参数详解:
+//   new THREE.AmbientLight(color, intensity)
+//   ① color     → 光色, 十六进制; 0xffffff = 白色 (中性光, 不偏色)
+//   ② intensity → 强度 0~1
+//                  0   → 完全没有底光, 背光面纯黑
+//                  0.6 → 中等底光, 既能看清暗面, 又保留明暗对比
+//                  1   → 全亮, 物体看起来"扁平", 失去立体感
+const ambientLight = new THREE.AmbientLight(
+  0xffffff,   // ① color
+  0.6         // ② intensity
+);
+scene.add(ambientLight);
+
+// DirectionalLight(平行光): 模拟太阳光, 所有光线平行射出
+//
+// 构造参数详解:
+//   new THREE.DirectionalLight(color, intensity)
+//   ① color     → 光色, 0xffffff = 白色
+//   ② intensity → 强度系数 (>=0), 默认 1
+//
+// 平行光的方向由 "position - target" 决定:
+//   position = 光源的"出发点"
+//   target   = 终点, 默认 (0,0,0)
+const directionalLight = new THREE.DirectionalLight(
+  0xffffff,   // ① color
+  1           // ② intensity
+);
+
+// 设置光源位置 (决定光线方向 + 阴影投射方向)
+//   (5, 10, 5) → 从右上前斜射下来, 类似下午的阳光
+directionalLight.position.set(5, 10, 5);
+
+// castShadow: 开启阴影投射
+//   DirectionalLight 默认不投影, 需手动开
+directionalLight.castShadow = true;
+
+// 平行光的阴影计算区域是正方体视锥体
+// 这里扩大范围到 ±20, 覆盖整个网格区域
+//
+// shadow.camera 是 OrthographicCamera, 它定义了"光源视角下"的可见 AABB
+//   left/right/top/bottom → 视锥体的四个边界 (世界单位)
+//   near/far              → 沿光源方向的近/远裁切面
+const shadowD = 20;
+directionalLight.shadow.camera.left   = -shadowD;  // 左边界
+directionalLight.shadow.camera.right  =  shadowD;  // 右边界
+directionalLight.shadow.camera.top    =  shadowD;  // 上边界
+directionalLight.shadow.camera.bottom = -shadowD;  // 下边界
+directionalLight.shadow.camera.near   = 0.5;       // 近裁切面
+directionalLight.shadow.camera.far    = 100;       // 远裁切面
+
+// shadow.mapSize: 阴影贴图分辨率
+//   set(width, height):
+//     ① width  → 贴图宽度 (像素, 必须是 2 的幂: 512/1024/2048/4096)
+//     ② height → 贴图高度 (像素, 必须是 2 的幂)
+//   默认 512×512 → 远距离阴影会糊
+//   2048×2048 → 高分辨率, 阴影更清晰, 但显存占用翻倍
+directionalLight.shadow.mapSize.set(2048, 2048);
+
+scene.add(directionalLight);
+
+
+/* ============================================================
+ * 10. dat.gui / lil-gui 控制面板
+ * ============================================================ */
+
+const gui = new GUI();
+
+/* -------- 10.1 天空盒控制面板 -------- */
+const skyFolder = gui.addFolder("天空盒设置");
+
+// 天空盒参数
+const skyParams = {
+  rotationSpeed: 0.0005,    // 天空盒自转速度 (弧度/帧)
+  autoRotate: true,         // 是否自动旋转
+};
+
+// 滑块: 旋转速度
+// add(target, property, min, max).name(label).onChange(fn)
+//   ① target    → 要修改的对象 (skyParams)
+//   ② property  → 对象上的属性名 ('rotationSpeed')
+//   ③ min       → 滑块最小值 (-0.005 = 反方向旋转)
+//   ④ max       → 滑块最大值 (0.005 = 正方向旋转)
+//   .name(label) → 面板上显示的中文标签
+//   .onChange(fn) → 滑块值变化时触发回调
+skyFolder.add(skyParams, 'rotationSpeed', -0.005, 0.005)
+  .name('旋转速度')
+  .onChange(value => {
+    console.log('旋转速度:', value);
+  });
+
+// 复选框: 是否自动旋转
+// add(target, property).name(label)
+//   property 对应的值是 boolean, lil-gui 自动渲染为复选框
+skyFolder.add(skyParams, 'autoRotate')
+  .name('自动旋转');
+
+skyFolder.open();  // 默认展开文件夹
+
+/* -------- 10.2 物体控制面板 -------- */
+const objFolder = gui.addFolder("物体设置");
+
+// 物体参数
+const objParams = {
+  color: '#4488ff',         // 物体颜色 (CSS 十六进制字符串, 必须以 # 开头)
+  metalness: 0.3,           // 金属度 0~1
+  roughness: 0.4,           // 粗糙度 0~1
+  rotationSpeed: 0.01,      // 物体自转速度 (弧度/帧)
+};
+
+// 颜色选择器: 物体颜色
+// addColor(target, property).name(label).onChange(fn)
+//   ① target    → objParams
+//   ② property  → 'color'
+//   .onChange(value) → 颜色变化回调, value 是 "#rrggbb" 字符串
+//   material.color.set(cssString) → 用 CSS 颜色字符串更新材质颜色
+objFolder.addColor(objParams, 'color')
+  .name('颜色')
+  .onChange(value => {
+    material.color.set(value);
+  });
+
+// 滑块: 金属度
+// 范围 0~1: 0 非金属 (电介质), 1 金属
+objFolder.add(objParams, 'metalness', 0, 1)
+  .name('金属度')
+  .onChange(value => {
+    material.metalness = value;
+  });
+
+// 滑块: 粗糙度
+// 范围 0~1: 0 镜面光滑, 1 完全粗糙
+objFolder.add(objParams, 'roughness', 0, 1)
+  .name('粗糙度')
+  .onChange(value => {
+    material.roughness = value;
+  });
+
+// 滑块: 物体自转速度
+// 范围 0~0.05: 0 静止, 0.05 快速旋转
+objFolder.add(objParams, 'rotationSpeed', 0, 0.05)
+  .name('自转速度');
+
+objFolder.open();
+
+
+/* ============================================================
+ * 11. 动画循环
+ * ============================================================ */
+// requestAnimationFrame 比 setInterval 更高效:
+//   - 跟随显示器刷新率 (通常 60fps, 高刷屏 120/144fps)
+//   - 标签页隐藏时自动暂停, 节省 CPU/GPU
+//   - 不会因为 JS 阻塞而"丢帧"
+function animate() {
+  // 把 animate 自己注册到浏览器的下一帧回调队列
+  // 这样就形成了"每帧调用 animate → animate 再注册下一帧"的无限循环
+  requestAnimationFrame(animate);
+
+  // 天空盒自转 (绕 Y 轴)
+  //   旋转 scene.background (即加载好的 CubeTexture) 可以模拟云层流动等效果
+  //   .rotation += speed → 每帧累加一点角度
+  // ponytail: scene.background 在 CubeTextureLoader.load 回调里被赋值,
+  //           加载完成前是 null, 所以这里要先判断
+  if (skyParams.autoRotate && scene.background) {
+    scene.background.rotation += skyParams.rotationSpeed;
+  }
+
+  // 物体自转 (绕 Y 轴)
+  //   rotation.y += speed → 每帧累加一点弧度
+  mesh.rotation.y += objParams.rotationSpeed;
+
+  // 启用了 enableDamping, 必须每帧调用 controls.update() 才能让阻尼生效
+  controls.update();
+
+  // renderer.render(scene, camera):
+  //   ① scene  → 要渲染的场景
+  //   ② camera → 用哪个相机的视角来观察场景
+  // 内部流程: 遍历 scene 的所有 mesh → 投影到 camera 的视锥体 → WebGL 绘制
+  renderer.render(scene, camera);
+}
+animate();
+
+
+/* ============================================================
+ * 12. 响应窗口大小变化 (Resize)
+ * ============================================================ */
+// 用户调整浏览器窗口大小后, 画布如果不跟着变, 就会出现"画面被拉伸"或"留黑边"
+//
+// 三步处理:
+//   ① camera.aspect = newW / newH
+//        更新相机的宽高比
+//   ② camera.updateProjectionMatrix()
+//        上面改了 aspect, 必须调用此方法重新计算相机的投影矩阵
+//        (投影矩阵决定 3D 坐标如何映射到 2D 画布)
+//        不调用的话, 改了 aspect 也不会生效
+//   ③ renderer.setSize(newW, newH)
+//        更新画布的物理像素尺寸
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
