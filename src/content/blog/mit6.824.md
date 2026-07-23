@@ -672,3 +672,29 @@ split brain (脑裂问题) 出现两个主 且不知道彼此的存在
 解决思路 ； 使用租约
 
 还有强一致实现 两阶段提交
+
+
+## Lecture 4 Primary-Backup Replication
+
+
+ > 针对单个机器故障 或者 整个机房中心的故障情况下
+
+
+两个策略
+* state transfer 状态传输。 基于内存
+* Replicated State machine 复制状态的机器 (主流策略) 基于操作
+
+
+基本副本都是接受主节点计算结果
+
+扩展到多核机器的情况下。因为两个核心指令交错是不确定的,多进程程运行的情况下- 这里使用 第一个 state transfer 会更健壮
+
+
+出现的问题
+1.  what state ? 在什么层次进行备份
+2. P/B sync ? 备份滞后的情况, 初选主节点的消耗时间对滞后的情况
+3. cut-over 切换
+4. anomales. (异常 主节点的异常)
+5. new replices
+
+
