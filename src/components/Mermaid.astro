@@ -1,0 +1,98 @@
+<!-- Markdown keeps its source as a readable fallback until rendering succeeds. -->
+<script>
+	async function renderDiagrams() {
+		const blocks = document.querySelectorAll<HTMLElement>(
+			'pre > code.language-mermaid, pre[data-language="mermaid"] > code',
+		);
+		if (!blocks.length) return;
+
+		try {
+			const { default: mermaid } = await import('mermaid');
+			await document.fonts.ready;
+			const diagrams = Array.from(blocks, (block) => ({
+				source: block.textContent ?? '',
+				element: block.parentElement!,
+			}));
+			const currentTheme = () => document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+			let rendering = false;
+			let version = 0;
+
+			async function updateTheme() {
+				if (rendering) return;
+				rendering = true;
+				try {
+					let theme: string;
+					do {
+						theme = currentTheme();
+						version++;
+						mermaid.initialize({
+							startOnLoad: false,
+							securityLevel: 'strict',
+							theme: theme === 'dark' ? 'dark' : 'neutral',
+							fontFamily: 'Arial, "Microsoft YaHei", sans-serif',
+						});
+						for (const [index, diagram] of diagrams.entries()) {
+							// A fresh ID keeps the previous SVG visible until its replacement is ready.
+							const id = `mermaid-diagram-${version}-${index}`;
+							try {
+								await mermaid.parse(diagram.source);
+								const { svg, bindFunctions } = await mermaid.render(id, diagram.source);
+								const figure = document.createElement('figure');
+								figure.className = 'mermaid-diagram';
+								figure.dataset.mermaidTheme = theme;
+								figure.setAttribute('aria-label', `流程示意图 ${index + 1}`);
+								figure.tabIndex = 0;
+								figure.innerHTML = svg;
+								diagram.element.replaceWith(figure);
+								diagram.element = figure;
+								bindFunctions?.(figure);
+							} catch (error) {
+								document.getElementById(`d${id}`)?.remove();
+								console.error('Mermaid 图表渲染失败，已保留原内容。', error);
+							}
+						}
+						// Theme changes during rendering are coalesced into the next pass.
+					} while (theme !== currentTheme());
+				} finally {
+					rendering = false;
+				}
+			}
+
+			new MutationObserver(() => void updateTheme()).observe(document.documentElement, {
+				attributes: true,
+				attributeFilter: ['data-theme'],
+			});
+			await updateTheme();
+		} catch (error) {
+			console.error('Mermaid 加载失败，已保留源代码。', error);
+		}
+	}
+
+	void renderDiagrams();
+</script>
+
+<style is:global>
+	.prose .mermaid-diagram {
+		margin: 1.5rem 0;
+		padding: 1rem;
+		overflow-x: auto;
+		border: 1px solid var(--border-color);
+		border-radius: 0.5rem;
+		background: var(--bg-primary);
+		color: var(--text-primary);
+	}
+
+	/* Mermaid owns label colors; article paragraph styles must not override them. */
+	.prose .mermaid-diagram p {
+		color: inherit;
+		margin: 0;
+	}
+
+	.prose .mermaid-diagram svg {
+		display: block;
+		width: 100%;
+		min-width: 560px;
+		height: auto;
+		margin: 0 auto;
+	}
+</style>

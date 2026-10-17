@@ -8,5 +8,8 @@ import preact from '@astrojs/preact';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://blogs.zqsrh.com',
+	markdown: {
+		syntaxHighlight: { type: 'shiki', excludeLangs: ['mermaid'] },
+	},
 	integrations: [mdx(), sitemap(), tailwind(), preact()],
 });
