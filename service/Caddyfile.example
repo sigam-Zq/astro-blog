@@ -1,0 +1,24 @@
+# Same-origin static website and API entry. mTLS is deliberately deferred.
+# Replace this domain, copy Astro dist/ to /srv/blog, and join the Compose
+# private-diary_diary network when running Caddy in a container.
+blogs.example.com {
+    handle /api/v1/* {
+        reverse_proxy diary:8080 {
+            health_uri /readyz
+            health_interval 10s
+            health_timeout 3s
+        }
+    }
+    handle {
+        root * /srv/blog
+        file_server
+    }
+    @private path /diary /diary/* /api/*
+    header @private {
+        Cache-Control "no-store"
+        Referrer-Policy "no-referrer"
+        X-Robots-Tag "noindex, nofollow, noarchive"
+        X-Content-Type-Options "nosniff"
+    }
+    # Do not add access logging of request URLs or bodies to this private entry.
+}

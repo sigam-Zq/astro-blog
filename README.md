@@ -86,3 +86,7 @@
 -   索引页：`public/html/index.html`（**手写维护**，新增文件后同步追加链接）
 -   机制：Astro 构建时 `public/` 原样复制到 `dist/`，HTML 文件本身不经任何处理
 -   工作流：写文件 → `git add public/html/foo.html && git commit && git push` → 随现有 CI 自动上线
+
+## 私密日记
+
+页面入口为页脚版权旁的小圆点，日记通过独立 Go 服务动态加载，仅登录后可见。部署、配置文件/环境变量、Docker Compose 与恢复说明见 [service/README.md](service/README.md)。Go 服务需要单独部署并通过 HTTPS 入口提供同源 `/api/v1/`；GitHub Pages 不能运行 Go。mTLS 当前只整理了需求，尚未实施。

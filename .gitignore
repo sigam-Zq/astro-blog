@@ -27,3 +27,12 @@ public/admin/
 
 # jetbrains setting folder
 .idea/
+
+# Diary runtime secrets and local binaries
+service/.env*
+!service/.env.example
+service/config.yaml
+service/config.*.local.yaml
+service/certs/
+service/bin/
+service/runtime*.env

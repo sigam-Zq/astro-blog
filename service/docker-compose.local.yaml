@@ -1,0 +1,5 @@
+# Optional: host-based reverse proxy. Never expose the Go API directly on 0.0.0.0.
+services:
+  diary:
+    ports:
+      - "127.0.0.1:${DIARY_HOST_PORT:-8080}:8080"

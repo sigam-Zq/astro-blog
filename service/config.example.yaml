@@ -1,0 +1,19 @@
+server:
+  addr: "0.0.0.0:8080"
+  app_origin: "http://localhost:4321"
+  # Enable for HTTPS-only browser entry deployments.
+  require_https: false
+admin:
+  username: "REPLACE_WITH_USERNAME"
+  # Use exactly one password representation. Prefer password_hash.
+  password_hash: "REPLACE_WITH_ARGON2ID_HASH"
+  # password: "REPLACE_WITH_PASSWORD"
+s3:
+  # The supplied HTTP endpoint is suitable only over a trusted private link.
+  endpoint: "http://dev.zqsrh.com:9000"
+  region: "us-east-1"
+  bucket: "REPLACE_WITH_PRIVATE_BUCKET"
+  prefix: "diary/v1/"
+  access_key_id: "REPLACE_WITH_ACCESS_KEY"
+  secret_access_key: "REPLACE_WITH_SECRET_KEY"
+  force_path_style: true

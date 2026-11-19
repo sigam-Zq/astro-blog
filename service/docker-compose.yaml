@@ -1,0 +1,34 @@
+name: private-diary
+services:
+  diary:
+    build:
+      context: .
+    image: private-diary:local
+    restart: unless-stopped
+    # Compose >= 2.30 supports raw env_file values, preserving $ in Argon2 hashes.
+    env_file:
+      - path: ${DIARY_ENV_FILE:-runtime.env}
+        required: false
+        format: raw
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 120s
+    expose: ["8080"]
+    networks: [diary]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/usr/local/bin/diary",
+          "--probe",
+          "http://127.0.0.1:8080/healthz",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+networks:
+  diary: {}

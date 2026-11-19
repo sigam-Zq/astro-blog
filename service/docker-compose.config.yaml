@@ -1,0 +1,10 @@
+services:
+  diary:
+    command: ["--config", "/app/config.yaml"]
+    volumes:
+      - type: bind
+        source: ./config.yaml
+        target: /app/config.yaml
+        read_only: true
+        bind:
+          create_host_path: false
