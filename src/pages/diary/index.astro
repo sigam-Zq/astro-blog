@@ -17,7 +17,7 @@ const diaryTheme = scopeDiaryTheme(themeCSS);
   <style is:inline set:html={diaryTheme} />
  </head>
  <body>
-  <div class="diary-site-header"><Header /></div>
+  <div class="diary-site-header"><Header showDiaryThemes={true} /></div>
   <main id="main-content" class="diary-main"><DiaryApp client:only="preact"><p slot="fallback">正在加载日记…</p></DiaryApp></main>
   <Footer />
  </body>
