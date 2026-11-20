@@ -3,6 +3,10 @@ server:
   app_origin: "http://localhost:4321"
   # Enable for HTTPS-only browser entry deployments.
   require_https: false
+  # Optional direct TLS / mTLS on the Go server (e.g. Let's Encrypt fullchain + privkey, and custom CA for client certs).
+  # tls_cert_file: "/etc/letsencrypt/live/api.blogs.zqsrh.com/fullchain.pem"
+  # tls_key_file: "/etc/letsencrypt/live/api.blogs.zqsrh.com/privkey.pem"
+  # tls_client_ca_file: "/etc/diary/ca.crt"
 admin:
   username: "REPLACE_WITH_USERNAME"
   # Use exactly one password representation. Prefer password_hash.

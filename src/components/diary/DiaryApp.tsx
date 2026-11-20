@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import Markdown from "./Markdown";
 import {
   Button,
   Input,
-  Textarea,
   Dialog,
   Callout,
-  Tag,
   Loading,
-  EditorTabs,
 } from "./ui";
 import {
   type Document,
@@ -17,8 +13,20 @@ import {
   type Session,
 } from "./types";
 import "./diary.css";
+import {
+  JournalView,
+  TerminalView,
+  MagazineView,
+  isDiaryTheme,
+  type DiaryThemeKey,
+  type DiaryViewProps,
+} from "./DiaryThemes";
 
 type Route = { view: string; id: string };
+type HistoryMeta = { idx: number; prev: string | null };
+type PendingNav =
+  | { kind: "go"; url: string; replace?: boolean }
+  | { kind: "pop"; delta: number };
 type Filters = {
   q: string;
   tag: string;
@@ -39,6 +47,10 @@ type Confirmation = {
   cancelLabel?: string;
   danger?: boolean;
 };
+const API_ORIGIN = (
+  import.meta.env.PUBLIC_DIARY_API_ORIGIN || ""
+).replace(/\/+$/, "");
+
 const emptyFilters: Filters = {
   q: "",
   tag: "",
@@ -59,12 +71,22 @@ const blank = (): Document => ({
   tags: [],
   contentMarkdown: "",
 });
-function routeAtLocation(): Route {
-  const p = new URLSearchParams(location.search);
+function parseURL(url: string): Route {
+  const p = new URL(url, window.location.origin).searchParams;
   const view = p.get("view") || "list";
   return {
     view: ["list", "new", "read", "edit"].includes(view) ? view : "list",
     id: p.get("id") || "",
+  };
+}
+function routeAtLocation(): Route {
+  return parseURL(location.href);
+}
+function currentHistoryMeta(): HistoryMeta {
+  const s = history.state as Partial<HistoryMeta> | null;
+  return {
+    idx: typeof s?.idx === "number" ? s.idx : 0,
+    prev: typeof s?.prev === "string" ? s.prev : null,
   };
 }
 function filtersAtLocation(): Filters {
@@ -77,6 +99,15 @@ function filtersAtLocation(): Filters {
     dateTo: p.get("dateTo") || "",
     page: Number.isInteger(n) && n > 0 ? n : 1,
   };
+}
+function readDiaryTheme(): DiaryThemeKey {
+  const attr = window.document.documentElement.dataset.diaryTheme;
+  if (isDiaryTheme(attr)) return attr;
+  try {
+    const saved = localStorage.getItem("diary-theme");
+    if (isDiaryTheme(saved)) return saved;
+  } catch {}
+  return "journal";
 }
 function listURL(f: Filters) {
   const p = new URLSearchParams();
@@ -97,6 +128,7 @@ export default function DiaryApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [checking, setChecking] = useState(true);
   const [route, setRoute] = useState<Route>(routeAtLocation);
+  const [diaryTheme, setDiaryTheme] = useState<DiaryThemeKey>(readDiaryTheme);
   const [filters, setFilters] = useState<Filters>(filtersAtLocation);
   const [search, setSearch] = useState(filters.q);
   const [showFilters, setShowFilters] = useState(false);
@@ -108,10 +140,12 @@ export default function DiaryApp() {
   const [baseline, setBaseline] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [preview, setPreview] = useState(false);
   const [reload, setReload] = useState(0);
+  const [listReload, setListReload] = useState(0);
   const [deleteTarget, setDeleteTarget] = useState<Metadata | Entry | null>(
     null
   );
@@ -125,12 +159,15 @@ export default function DiaryApp() {
   );
   useEffect(() => {
     const root = window.document.documentElement;
-    const observer = new MutationObserver(() =>
-      setDark(root.dataset.theme === "dark")
-    );
+    const syncThemeAttrs = () => {
+      setDark(root.dataset.theme === "dark");
+      setDiaryTheme(readDiaryTheme());
+    };
+    syncThemeAttrs();
+    const observer = new MutationObserver(syncThemeAttrs);
     observer.observe(root, {
       attributes: true,
-      attributeFilter: ["data-theme"],
+      attributeFilter: ["data-theme", "data-diary-theme"],
     });
     return () => observer.disconnect();
   }, []);
@@ -153,7 +190,11 @@ export default function DiaryApp() {
   const channel = useRef<BroadcastChannel | null>(null);
   const listReturn = useRef(listURL(filters));
   const currentURL = useRef(location.pathname + location.search);
+  const curIdx = useRef(currentHistoryMeta().idx);
+  const pendingNav = useRef<PendingNav | null>(null);
+  const bypassDirty = useRef(false);
   const generation = useRef(0);
+  const listGeneration = useRef(0);
   const operation = useRef<{ id: string; method: string; body: string } | null>(
     null
   );
@@ -181,6 +222,7 @@ export default function DiaryApp() {
       setUncertain(false);
     }
     generation.current++;
+    listGeneration.current++;
     setSession(null);
     setItems([]);
     setTotal(0);
@@ -202,10 +244,10 @@ export default function DiaryApp() {
       if (init.body) headers.set("Content-Type", "application/json");
       if (init.method && !["GET", "HEAD"].includes(init.method))
         headers.set("X-CSRF-Token", sessionRef.current?.csrfToken || "");
-      const response = await fetch(`/api/v1${path}`, {
+      const response = await fetch(`${API_ORIGIN}/api/v1${path}`, {
         ...init,
         headers,
-        credentials: "same-origin",
+        credentials: API_ORIGIN ? "include" : "same-origin",
         cache: "no-store",
       });
       if (!response.ok) {
@@ -265,11 +307,12 @@ export default function DiaryApp() {
     );
     return () => clearTimeout(t);
   }, [session]);
-  const go = (url: string, replace = false) => {
+  const syncFromLocation = () => {
     generation.current++;
-    history[replace ? "replaceState" : "pushState"]({}, "", url);
     currentURL.current = location.pathname + location.search;
-    setRoute(routeAtLocation());
+    curIdx.current = currentHistoryMeta().idx;
+    const nextRoute = routeAtLocation();
+    setRoute(nextRoute);
     const f = filtersAtLocation();
     if (!new URLSearchParams(location.search).get("view")) {
       setFilters(f);
@@ -279,22 +322,80 @@ export default function DiaryApp() {
     setNotice("");
     setConflict(false);
     setPreview(false);
-    setReload((n) => n + 1);
+    if (nextRoute.view === "list") {
+      setListReload((n) => n + 1);
+    } else {
+      setReload((n) => n + 1);
+    }
   };
-  const navigate = (url: string) => {
+  const go = (url: string, replace = false) => {
+    const meta = currentHistoryMeta();
+    const nextMeta: HistoryMeta = replace
+      ? meta
+      : { idx: meta.idx + 1, prev: currentURL.current };
+    history[replace ? "replaceState" : "pushState"](nextMeta, "", url);
+    syncFromLocation();
+  };
+  const runNav = (nav: PendingNav) => {
+    if (nav.kind === "go") {
+      go(nav.url, nav.replace);
+    } else {
+      bypassDirty.current = true;
+      history.go(nav.delta);
+    }
+  };
+  const navigate = (url: string, replace = false) => {
     if (busy || uncertain) {
       setError("请先核对当前操作结果");
       return;
     }
     if (dirty) {
+      pendingNav.current = { kind: "go", url, replace };
       setLeaveTo(url);
       return;
     }
-    go(url);
+    go(url, replace);
   };
-  const navRef = useRef(navigate);
-  navRef.current = navigate;
+  const goBack = () => {
+    if (busy || uncertain) {
+      setError("请先核对当前操作结果");
+      return;
+    }
+    const prev = currentHistoryMeta().prev;
+    const prevRoute = prev ? parseURL(prev) : null;
+    const canBack =
+      prevRoute &&
+      (prevRoute.view === "list" ||
+        (route.view === "edit" &&
+          prevRoute.view === "read" &&
+          prevRoute.id === route.id));
+    if (canBack) {
+      if (dirty) {
+        pendingNav.current = { kind: "pop", delta: -1 };
+        setLeaveTo(prev!);
+        return;
+      }
+      bypassDirty.current = true;
+      history.back();
+      return;
+    }
+    const fallback =
+      route.view === "edit" && entry
+        ? `/diary/?view=read&id=${route.id}`
+        : listReturn.current;
+    navigate(fallback, true);
+  };
+  const navRef = useRef({ busy, uncertain, syncFromLocation });
+  navRef.current = { busy, uncertain, syncFromLocation };
   useEffect(() => {
+    if (!history.state || typeof history.state.idx !== "number") {
+      history.replaceState(
+        { idx: 0, prev: null } satisfies HistoryMeta,
+        "",
+        location.pathname + location.search
+      );
+      curIdx.current = 0;
+    }
     const unload = (e: BeforeUnloadEvent) => {
       if (editRef.current.dirty || operation.current) {
         e.preventDefault();
@@ -303,8 +404,27 @@ export default function DiaryApp() {
     };
     const pop = () => {
       const target = location.pathname + location.search;
-      history.replaceState({}, "", currentURL.current);
-      navRef.current(target);
+      const nextMeta = currentHistoryMeta();
+      const delta = nextMeta.idx - curIdx.current || -1;
+      if (bypassDirty.current) {
+        bypassDirty.current = false;
+        navRef.current.syncFromLocation();
+        return;
+      }
+      if (navRef.current.busy || navRef.current.uncertain) {
+        bypassDirty.current = true;
+        history.go(-delta);
+        setError("请先核对当前操作结果");
+        return;
+      }
+      if (editRef.current.dirty) {
+        bypassDirty.current = true;
+        history.go(-delta);
+        pendingNav.current = { kind: "pop", delta };
+        setLeaveTo(target);
+        return;
+      }
+      navRef.current.syncFromLocation();
     };
     window.addEventListener("beforeunload", unload);
     window.addEventListener("popstate", pop);
@@ -319,16 +439,76 @@ export default function DiaryApp() {
     }, 300);
     return () => clearTimeout(t);
   }, [search]);
-  function updateFilters(update: Partial<Filters>) {
+  function updateFilters(update: Partial<Filters>, push = false) {
     const next = { ...filters, ...update, page: update.page ?? 1 };
     setFilters(next);
+    setError("");
     const url = listURL(next);
-    history.replaceState({}, "", url);
-    currentURL.current = url;
     listReturn.current = url;
+    if (route.view === "list") {
+      const meta = currentHistoryMeta();
+      const nextMeta: HistoryMeta = push
+        ? { idx: meta.idx + 1, prev: currentURL.current }
+        : meta;
+      history[push ? "pushState" : "replaceState"](nextMeta, "", url);
+      curIdx.current = nextMeta.idx;
+      currentURL.current = url;
+    }
   }
+  const needList = route.view === "list" || diaryTheme === "terminal";
   useEffect(() => {
-    if (!session) return;
+    if (!session || !needList) return;
+    const controller = new AbortController();
+    const gen = ++listGeneration.current;
+    let active = true;
+    const current = () => active && gen === listGeneration.current;
+    setListLoading(true);
+    if (route.view === "list") listReturn.current = listURL(filters);
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(filters))
+      if (v) p.set(k, String(v));
+    request<{ items: Metadata[]; total: number }>(`/diaries?${p}`, {
+      signal: controller.signal,
+    })
+      .then((data) => {
+        if (current()) {
+          setItems(data.items);
+          setTotal(data.total);
+        }
+      })
+      .catch((e) => {
+        if (current() && e.name !== "AbortError") {
+          setError(e.message);
+          if (route.view === "list") {
+            setItems([]);
+            setTotal(0);
+          }
+        }
+      })
+      .finally(() => {
+        if (current()) setListLoading(false);
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [
+    session,
+    needList,
+    filters.q,
+    filters.tag,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.page,
+    listReload,
+  ]);
+  useEffect(() => {
+    if (!session || route.view === "list") {
+      setLoading(false);
+      setEntry(null);
+      setConflict(false);
+      return;
+    }
     const controller = new AbortController();
     const gen = ++generation.current;
     let active = true;
@@ -338,24 +518,15 @@ export default function DiaryApp() {
     setEntry(null);
     setConflict(false);
     async function load() {
-      if (route.view === "list") {
-        listReturn.current = listURL(filters);
-        const p = new URLSearchParams();
-        for (const [k, v] of Object.entries(filters))
-          if (v) p.set(k, String(v));
-        const data = await request<{ items: Metadata[]; total: number }>(
-          `/diaries?${p}`,
-          { signal: controller.signal }
-        );
-        if (current()) {
-          setItems(data.items);
-          setTotal(data.total);
-        }
-      } else if (route.view === "new") {
+      if (route.view === "new") {
         const id = route.id || crypto.randomUUID();
         if (!validID.test(id)) throw new Error("日记 ID 无效");
         if (!route.id) {
-          history.replaceState({}, "", `/diary/?view=new&id=${id}`);
+          history.replaceState(
+            currentHistoryMeta(),
+            "",
+            `/diary/?view=new&id=${id}`
+          );
           currentURL.current = location.pathname + location.search;
           setRoute({ view: "new", id });
           return;
@@ -401,11 +572,16 @@ export default function DiaryApp() {
     load()
       .catch((e) => {
         if (current() && e.name !== "AbortError") {
-          setError(e.message);
-          if (route.view === "list") {
-            setItems([]);
-            setTotal(0);
+          if (
+            e instanceof APIError &&
+            e.status === 404 &&
+            (route.view === "read" || route.view === "edit")
+          ) {
+            go(listReturn.current, true);
+            setError("日记不存在或已被删除");
+            return;
           }
+          setError(e.message);
         }
       })
       .finally(() => {
@@ -415,17 +591,7 @@ export default function DiaryApp() {
       active = false;
       controller.abort();
     };
-  }, [
-    session,
-    route.view,
-    route.id,
-    filters.q,
-    filters.tag,
-    filters.dateFrom,
-    filters.dateTo,
-    filters.page,
-    reload,
-  ]);
+  }, [session, route.view, route.id, reload]);
   async function login(e: Event) {
     e.preventDefault();
     setBusy(true);
@@ -485,7 +651,7 @@ export default function DiaryApp() {
       setBusy(false);
     }
   }
-  async function save(destination?: string) {
+  async function save(nav?: PendingNav | null) {
     if (busy) return;
     if (operation.current && operation.current.method !== "PUT") {
       setError("请先完成删除结果核对");
@@ -525,14 +691,16 @@ export default function DiaryApp() {
       setBaseline(JSON.stringify({ document: saved.document, tags: t }));
       setNotice("");
       setConflict(false);
-      if (destination) {
-        setLeaveTo(null);
-        go(destination);
-      } else if (route.view === "new") {
+      setListReload((n) => n + 1);
+      if (route.view === "new") {
         const url = `/diary/?view=edit&id=${saved.id}`;
-        history.replaceState({}, "", url);
+        history.replaceState(currentHistoryMeta(), "", url);
         currentURL.current = url;
-        setRoute({ view: "edit", id: saved.id });
+        if (!nav) setRoute({ view: "edit", id: saved.id });
+      }
+      if (nav) {
+        setLeaveTo(null);
+        runNav(nav);
       }
     } catch (e) {
       const err = e as APIError;
@@ -581,7 +749,16 @@ export default function DiaryApp() {
       setUncertain(false);
       setDeleteTarget(null);
       setBaseline(JSON.stringify({ document, tags }));
-      go(listReturn.current);
+      setListReload((n) => n + 1);
+      if (route.view !== "list") {
+        const prev = currentHistoryMeta().prev;
+        if (prev && parseURL(prev).view === "list") {
+          bypassDirty.current = true;
+          history.back();
+        } else {
+          go(listReturn.current, true);
+        }
+      }
     } catch (e) {
       const err = e as APIError;
       if (
@@ -617,32 +794,89 @@ export default function DiaryApp() {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, []);
-  const editing = route.view === "new" || route.view === "edit";
   const activeFilters = [filters.tag, filters.dateFrom, filters.dateTo].filter(
     Boolean
   ).length;
   const displayed = entry?.document || document;
+  const viewProps: DiaryViewProps = {
+    route,
+    filters,
+    emptyFilters,
+    search,
+    setSearch,
+    showFilters,
+    setShowFilters,
+    activeFilters,
+    updateFilters,
+    items,
+    total,
+    loading,
+    listLoading,
+    error,
+    notice,
+    busy,
+    uncertain,
+    conflict,
+    dirty,
+    entry,
+    document,
+    setDocument,
+    tags,
+    setTags,
+    preview,
+    setPreview,
+    displayed,
+    logout,
+    navigate,
+    goBack,
+    save: () => void save(),
+    setDeleteTarget,
+    reloadLatest: async () => {
+      if (
+        await ask({
+          title: "载入最新版本？",
+          message: "载入最新版本会丢弃当前输入，请先复制需要保留的内容。",
+          confirmLabel: "载入最新版本",
+          danger: true,
+        })
+      ) {
+        operation.current = null;
+        setUncertain(false);
+        resume.current = null;
+        setReload((n) => n + 1);
+      }
+    },
+    retryLoad: () => {
+      setError("");
+      setReload((n) => n + 1);
+      setListReload((n) => n + 1);
+    },
+    copyMarkdown: () =>
+      navigator.clipboard
+        .writeText(document.contentMarkdown)
+        .then(() => setNotice("正文已复制"))
+        .catch(() => setError("复制失败，请手动复制正文")),
+    timestamp,
+  };
+  const useDarkWA = dark || (!!session && diaryTheme === "terminal");
   return (
-    <div class={`diary-app ${dark ? "wa-dark" : "wa-light"}`} lang="zh-CN">
-      <div class="diary-heading">
-        <div>
-          <p class="diary-eyebrow">PRIVATE JOURNAL</p>
-          <h1>私人日记</h1>
-          <p class="diary-muted">记录日常，留给自己。</p>
-        </div>
-        {session && (
-          <Button disabled={busy} onClick={logout}>
-            退出登录
-          </Button>
-        )}
-      </div>
-      {error && (
-        <Callout class="diary-error">
-          {error}
-          {session && !editing && (
-            <Button onClick={() => setReload((n) => n + 1)}>重试</Button>
-          )}
-        </Callout>
+    <div
+      class={`diary-app ${
+        session ? `diary-theme-${diaryTheme} ` : ""
+      }${useDarkWA ? "wa-dark" : "wa-light"}`}
+      lang="zh-CN"
+    >
+      {!session && (
+        <>
+          <div class="diary-heading">
+            <div>
+              <p class="diary-eyebrow">PRIVATE JOURNAL</p>
+              <h1>私人日记</h1>
+              <p class="diary-muted">记录日常，留给自己。</p>
+            </div>
+          </div>
+          {error && <Callout class="diary-error">{error}</Callout>}
+        </>
       )}
       {checking ? (
         <Loading>正在检查登录状态…</Loading>
@@ -678,343 +912,9 @@ export default function DiaryApp() {
         </form>
       ) : (
         <>
-          {route.view === "list" ? (
-            <>
-              <div class="diary-toolbar">
-                <h2>
-                  我的日记{" "}
-                  <span class="diary-muted">{loading ? "…" : total}</span>
-                </h2>
-                <Button
-                  class="diary-primary"
-                  disabled={busy || uncertain}
-                  onClick={() => navigate("/diary/?view=new")}
-                >
-                  写日记
-                </Button>
-              </div>
-              <form
-                class="diary-filters diary-panel"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  updateFilters({ q: search });
-                }}
-              >
-                <Input
-                  class="diary-search"
-                  label="关键词"
-                  type="search"
-                  placeholder="搜索标题、标签或正文"
-                  maxLength={100}
-                  value={search}
-                  onInput={(e) => setSearch(e.currentTarget.value)}
-                />
-                <Button
-                  class="diary-filter-toggle"
-                  type="button"
-                  aria-expanded={showFilters}
-                  aria-controls="diary-filter-options"
-                  onClick={() => setShowFilters(!showFilters)}
-                >
-                  {showFilters ? "收起筛选" : "更多筛选"}
-                  {activeFilters > 0 && `（${activeFilters}）`}
-                </Button>
-                <div
-                  id="diary-filter-options"
-                  class={`diary-filter-options${showFilters ? " is-open" : ""}`}
-                >
-                  <Input
-                    label="标签"
-                    placeholder="精确标签"
-                    maxLength={20}
-                    value={filters.tag}
-                    onInput={(e) =>
-                      updateFilters({ tag: e.currentTarget.value })
-                    }
-                  />
-                  <Input
-                    label="开始日期"
-                    type="date"
-                    value={filters.dateFrom}
-                    onChange={(e) =>
-                      updateFilters({ dateFrom: e.currentTarget.value })
-                    }
-                  />
-                  <Input
-                    label="结束日期"
-                    type="date"
-                    value={filters.dateTo}
-                    onChange={(e) =>
-                      updateFilters({ dateTo: e.currentTarget.value })
-                    }
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setSearch("");
-                      updateFilters(emptyFilters);
-                    }}
-                  >
-                    清除筛选
-                  </Button>
-                </div>
-              </form>
-              {loading ? (
-                <Loading>正在加载日记…</Loading>
-              ) : !items.length && !error ? (
-                <div class="diary-empty diary-panel">
-                  <h3>
-                    {Object.entries(filters).some(([k, v]) => k !== "page" && v)
-                      ? "没有匹配结果"
-                      : "写下第一篇日记"}
-                  </h3>
-                  <p class="diary-muted">
-                    {total ? "试试其他筛选条件。" : "从今天的一件小事开始。"}
-                  </p>
-                </div>
-              ) : (
-                <div class="diary-list">
-                  {items.map((item) => (
-                    <article key={item.id} class="diary-panel diary-card">
-                      <div>
-                        <span class="diary-muted">{item.diaryDate}</span>
-                      </div>
-                      <h3>
-                        <a
-                          href={`/diary/?view=read&id=${item.id}`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigate(e.currentTarget.getAttribute("href")!);
-                          }}
-                        >
-                          {item.title}
-                        </a>
-                      </h3>
-                      <p class="diary-excerpt">{item.excerpt}</p>
-                      <div class="diary-tags">
-                        {item.tags?.map((t) => (
-                          <Tag>{t}</Tag>
-                        ))}
-                      </div>
-                      <div class="diary-card-bottom">
-                        <small class="diary-muted">
-                          更新于 {timestamp(item.updatedAt)}
-                        </small>
-                        <div>
-                          <Button
-                            onClick={() =>
-                              navigate(`/diary/?view=edit&id=${item.id}`)
-                            }
-                          >
-                            编辑
-                          </Button>
-                          <Button
-                            class="diary-danger"
-                            disabled={busy}
-                            onClick={() => setDeleteTarget(item)}
-                          >
-                            删除
-                          </Button>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-              {total > 20 && (
-                <div class="diary-pagination">
-                  <Button
-                    disabled={filters.page <= 1 || loading}
-                    onClick={() => updateFilters({ page: filters.page - 1 })}
-                  >
-                    上一页
-                  </Button>
-                  <span>
-                    {filters.page} / {Math.ceil(total / 20)}
-                  </span>
-                  <Button
-                    disabled={filters.page * 20 >= total || loading}
-                    onClick={() => updateFilters({ page: filters.page + 1 })}
-                  >
-                    下一页
-                  </Button>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              <Button
-                class="diary-back"
-                disabled={busy}
-                onClick={() => navigate(listReturn.current)}
-              >
-                ← 返回日记列表
-              </Button>
-              {loading ? (
-                <Loading>正在加载…</Loading>
-              ) : editing && (route.view === "new" || entry) ? (
-                <>
-                  <div class="diary-toolbar">
-                    <h2>{route.view === "new" ? "写日记" : "编辑日记"}</h2>
-                    <span class="diary-muted" role="status">
-                      {notice ||
-                        (dirty
-                          ? "未保存"
-                          : entry
-                          ? `已保存于 ${timestamp(entry.updatedAt)}`
-                          : "尚未保存")}
-                    </span>
-                  </div>
-                  {conflict && (
-                    <Callout variant="warning" class="diary-conflict">
-                      <p>请先复制当前输入，再载入最新版本进行合并。</p>
-                      <Button
-                        onClick={() =>
-                          navigator.clipboard
-                            .writeText(document.contentMarkdown)
-                            .then(() => setNotice("正文已复制"))
-                            .catch(() => setError("复制失败，请手动复制正文"))
-                        }
-                      >
-                        复制正文
-                      </Button>
-                      <Button
-                        onClick={async () => {
-                          if (
-                            await ask({
-                              title: "载入最新版本？",
-                              message:
-                                "载入最新版本会丢弃当前输入，请先复制需要保留的内容。",
-                              confirmLabel: "载入最新版本",
-                              danger: true,
-                            })
-                          ) {
-                            operation.current = null;
-                            setUncertain(false);
-                            resume.current = null;
-                            setReload((n) => n + 1);
-                          }
-                        }}
-                      >
-                        载入最新版本
-                      </Button>
-                    </Callout>
-                  )}
-                  <fieldset
-                    disabled={busy || uncertain}
-                    class="diary-editor-fields"
-                  >
-                    <div class="diary-panel">
-                      <Input
-                        label="标题"
-                        value={document.title}
-                        maxLength={100}
-                        placeholder="给今天起个标题"
-                        onInput={(e) =>
-                          setDocument({
-                            ...document,
-                            title: e.currentTarget.value,
-                          })
-                        }
-                      />
-                      <div class="diary-editor-meta">
-                        <Input
-                          label="日记日期"
-                          type="date"
-                          value={document.diaryDate}
-                          onChange={(e) =>
-                            setDocument({
-                              ...document,
-                              diaryDate: e.currentTarget.value,
-                            })
-                          }
-                        />
-                        <Input
-                          label="标签"
-                          value={tags}
-                          placeholder="逗号分隔，最多 10 个"
-                          onInput={(e) => setTags(e.currentTarget.value)}
-                        />
-                      </div>
-                    </div>
-                    <EditorTabs
-                      preview={preview}
-                      onChange={setPreview}
-                      editor={
-                        <div class="diary-panel">
-                          <Textarea
-                            label="正文"
-                            rows={20}
-                            disabled={busy || uncertain}
-                            value={document.contentMarkdown}
-                            placeholder="今天发生了什么？"
-                            onInput={(e) =>
-                              setDocument({
-                                ...document,
-                                contentMarkdown: e.currentTarget.value,
-                              })
-                            }
-                          />
-                        </div>
-                      }
-                      reader={
-                        <div class="diary-panel">
-                          {preview && (
-                            <Markdown content={document.contentMarkdown} />
-                          )}
-                        </div>
-                      }
-                    />
-                  </fieldset>
-                  <div class="diary-actions diary-save-actions">
-                    <Button
-                      class="diary-primary"
-                      disabled={busy || conflict}
-                      loading={busy}
-                      onClick={() => save()}
-                    >
-                      {busy
-                        ? "保存中…"
-                        : uncertain
-                        ? "核对并重试原操作"
-                        : "保存"}
-                    </Button>
-                  </div>
-                </>
-              ) : entry ? (
-                <article class="diary-panel diary-reader">
-                  <div class="diary-toolbar">
-                    <span class="diary-muted">私密日记</span>
-                    <div>
-                      <Button
-                        onClick={() =>
-                          navigate(`/diary/?view=edit&id=${entry.id}`)
-                        }
-                      >
-                        编辑
-                      </Button>
-                      <Button
-                        class="diary-danger"
-                        onClick={() => setDeleteTarget(entry)}
-                      >
-                        删除
-                      </Button>
-                    </div>
-                  </div>
-                  <p class="diary-muted">{displayed.diaryDate}</p>
-                  <h2>{displayed.title}</h2>
-                  <div class="diary-tags">
-                    {displayed.tags.map((t) => (
-                      <Tag>{t}</Tag>
-                    ))}
-                  </div>
-                  <Markdown content={displayed.contentMarkdown} />
-                </article>
-              ) : !error ? (
-                <p>日记不存在。</p>
-              ) : null}
-            </>
-          )}
+          {diaryTheme === "journal" && <JournalView p={viewProps} />}
+          {diaryTheme === "terminal" && <TerminalView p={viewProps} />}
+          {diaryTheme === "magazine" && <MagazineView p={viewProps} />}
         </>
       )}
       {session && deleteTarget && (
@@ -1057,21 +957,30 @@ export default function DiaryApp() {
         <Dialog
           label="还有未保存的修改"
           locked={busy || uncertain}
-          onClose={() => setLeaveTo(null)}
+          onClose={() => {
+            pendingNav.current = null;
+            setLeaveTo(null);
+          }}
           footer={
             <>
               <Button
                 disabled={busy || uncertain}
-                onClick={() => setLeaveTo(null)}
+                onClick={() => {
+                  pendingNav.current = null;
+                  setLeaveTo(null);
+                }}
               >
                 继续编辑
               </Button>
               <Button
                 disabled={busy || uncertain}
                 onClick={() => {
+                  const nav = pendingNav.current;
                   const to = leaveTo;
+                  pendingNav.current = null;
                   setLeaveTo(null);
-                  go(to);
+                  if (nav) runNav(nav);
+                  else go(to);
                 }}
               >
                 放弃修改
@@ -1080,7 +989,11 @@ export default function DiaryApp() {
                 class="diary-primary"
                 disabled={busy || conflict}
                 loading={busy}
-                onClick={() => save(leaveTo)}
+                onClick={() => {
+                  const nav = pendingNav.current;
+                  pendingNav.current = null;
+                  void save(nav);
+                }}
               >
                 保存后离开
               </Button>

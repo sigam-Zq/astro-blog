@@ -101,6 +101,17 @@ func (a *API) Handler() http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("X-Request-ID", auth.Token()[:16])
 		w.Header().Set("Referrer-Policy", "no-referrer")
+		if a.Origin != "" && r.Header.Get("Origin") == a.Origin {
+			w.Header().Set("Access-Control-Allow-Origin", a.Origin)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token")
+			w.Header().Set("Vary", "Origin")
+		}
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		mux.ServeHTTP(tracked, r)
 		route := r.Pattern
 		if route == "" {

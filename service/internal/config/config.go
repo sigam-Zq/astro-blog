@@ -15,9 +15,12 @@ import (
 
 type Config struct {
 	Server struct {
-		Addr         string `yaml:"addr"`
-		AppOrigin    string `yaml:"app_origin"`
-		RequireHTTPS bool   `yaml:"require_https"`
+		Addr            string `yaml:"addr"`
+		AppOrigin       string `yaml:"app_origin"`
+		RequireHTTPS    bool   `yaml:"require_https"`
+		TLSCertFile     string `yaml:"tls_cert_file"`
+		TLSKeyFile      string `yaml:"tls_key_file"`
+		TLSClientCAFile string `yaml:"tls_client_ca_file"`
 	} `yaml:"server"`
 	Admin struct {
 		Username     string `yaml:"username"`
@@ -63,7 +66,7 @@ func load(path string, env func(string) (string, bool)) (c Config, err error) {
 	if c.Admin.Password != "" && c.Admin.PasswordHash != "" {
 		return c, errors.New("configure only one file password representation")
 	}
-	fields := map[string]*string{"HTTP_ADDR": &c.Server.Addr, "APP_ORIGIN": &c.Server.AppOrigin, "ADMIN_USERNAME": &c.Admin.Username, "S3_ENDPOINT": &c.S3.Endpoint, "S3_REGION": &c.S3.Region, "S3_BUCKET": &c.S3.Bucket, "S3_PREFIX": &c.S3.Prefix, "S3_ACCESS_KEY_ID": &c.S3.AccessKeyID, "S3_SECRET_ACCESS_KEY": &c.S3.SecretAccessKey}
+	fields := map[string]*string{"HTTP_ADDR": &c.Server.Addr, "APP_ORIGIN": &c.Server.AppOrigin, "TLS_CERT_FILE": &c.Server.TLSCertFile, "TLS_KEY_FILE": &c.Server.TLSKeyFile, "TLS_CLIENT_CA_FILE": &c.Server.TLSClientCAFile, "ADMIN_USERNAME": &c.Admin.Username, "S3_ENDPOINT": &c.S3.Endpoint, "S3_REGION": &c.S3.Region, "S3_BUCKET": &c.S3.Bucket, "S3_PREFIX": &c.S3.Prefix, "S3_ACCESS_KEY_ID": &c.S3.AccessKeyID, "S3_SECRET_ACCESS_KEY": &c.S3.SecretAccessKey}
 	for k, p := range fields {
 		if v, ok := env(k); ok {
 			*p = v
@@ -98,6 +101,12 @@ func load(path string, env func(string) (string, bool)) (c Config, err error) {
 	c.Server.AppOrigin = strings.TrimSuffix(u.String(), "/")
 	if c.Server.RequireHTTPS && u.Scheme != "https" {
 		return c, errors.New("REQUIRE_HTTPS is enabled: APP_ORIGIN must use HTTPS")
+	}
+	if (c.Server.TLSCertFile == "") != (c.Server.TLSKeyFile == "") {
+		return c, errors.New("TLS_CERT_FILE and TLS_KEY_FILE must both be set")
+	}
+	if c.Server.TLSClientCAFile != "" && c.Server.TLSCertFile == "" {
+		return c, errors.New("TLS_CLIENT_CA_FILE requires TLS_CERT_FILE and TLS_KEY_FILE")
 	}
 	u, e = url.Parse(c.S3.Endpoint)
 	if e != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {

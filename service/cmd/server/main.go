@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"diary/internal/auth"
 	"diary/internal/config"
 	"diary/internal/diary"
@@ -48,7 +50,7 @@ func run() error {
 	}
 	if *path != "" || os.Getenv("DIARY_CONFIG") != "" {
 		overridden := []string{}
-		for _, name := range []string{"HTTP_ADDR", "APP_ORIGIN", "REQUIRE_HTTPS", "ADMIN_USERNAME", "ADMIN_PASSWORD", "ADMIN_PASSWORD_HASH", "S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_PREFIX", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_FORCE_PATH_STYLE"} {
+		for _, name := range []string{"HTTP_ADDR", "APP_ORIGIN", "REQUIRE_HTTPS", "TLS_CERT_FILE", "TLS_KEY_FILE", "TLS_CLIENT_CA_FILE", "ADMIN_USERNAME", "ADMIN_PASSWORD", "ADMIN_PASSWORD_HASH", "S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_PREFIX", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_FORCE_PATH_STYLE"} {
 			if _, ok := os.LookupEnv(name); ok {
 				overridden = append(overridden, name)
 			}
@@ -91,6 +93,22 @@ func run() error {
 	engine := diary.New(store)
 	api := &httpapi.API{Engine: engine, Auth: manager, Origin: c.Server.AppOrigin}
 	server := &http.Server{Addr: c.Server.Addr, Handler: api.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 100 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
+	if c.Server.TLSCertFile != "" {
+		tlsCfg := &tls.Config{MinVersion: tls.VersionTLS13}
+		if c.Server.TLSClientCAFile != "" {
+			caPEM, err := os.ReadFile(c.Server.TLSClientCAFile)
+			if err != nil {
+				return fmt.Errorf("failed to read TLS client CA file: %w", err)
+			}
+			pool := x509.NewCertPool()
+			if !pool.AppendCertsFromPEM(caPEM) {
+				return fmt.Errorf("invalid TLS client CA PEM")
+			}
+			tlsCfg.ClientCAs = pool
+			tlsCfg.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+		server.TLSConfig = tlsCfg
+	}
 	recoverDone := make(chan struct{})
 	go func() {
 		defer close(recoverDone)
@@ -115,7 +133,15 @@ func run() error {
 		}
 	}()
 	errors := make(chan error, 1)
-	go func() { slog.Info("service listening"); errors <- server.ListenAndServe() }()
+	go func() {
+		if c.Server.TLSCertFile != "" {
+			slog.Info("service listening with TLS", "mtls", c.Server.TLSClientCAFile != "")
+			errors <- server.ListenAndServeTLS(c.Server.TLSCertFile, c.Server.TLSKeyFile)
+		} else {
+			slog.Info("service listening")
+			errors <- server.ListenAndServe()
+		}
+	}()
 	select {
 	case <-ctx.Done():
 	case err = <-errors:
