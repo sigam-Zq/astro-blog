@@ -1,0 +1,1878 @@
+---
+interface Props {
+	href?: string;
+}
+
+const { href = '/diary/' } = Astro.props;
+---
+
+<span class="diary-egg-wrap" data-diary-egg-wrap>
+	<a
+		href={href}
+		class="diary-entry diary-egg-trigger"
+		aria-label="打开私人日记"
+		data-diary-egg-trigger
+	>·</a>
+	<span class="diary-egg-hint" aria-live="polite" data-diary-egg-hint></span>
+	<span class="diary-egg-ripples" aria-hidden="true" data-diary-egg-ripples></span>
+</span>
+
+<button
+	type="button"
+	class="diary-egg-firefly"
+	hidden
+	aria-label="点击萤火虫进入私人日记"
+	data-diary-egg-firefly
+>
+	<span class="diary-egg-firefly-halo" aria-hidden="true"></span>
+	<svg
+		class="diary-egg-firefly-svg"
+		viewBox="0 0 48 48"
+		width="42"
+		height="42"
+		aria-hidden="true"
+	>
+		<defs>
+			<radialGradient id="diary-egg-ff-aura" cx="50%" cy="60%" r="50%">
+				<stop offset="0%" stop-color="rgba(255, 226, 106, 0.85)" />
+				<stop offset="55%" stop-color="rgba(242, 169, 59, 0.28)" />
+				<stop offset="100%" stop-color="rgba(242, 169, 59, 0)" />
+			</radialGradient>
+			<radialGradient id="diary-egg-ff-lantern" cx="50%" cy="42%" r="58%">
+				<stop offset="0%" stop-color="#fffef0" />
+				<stop offset="48%" stop-color="#ffe26a" />
+				<stop offset="100%" stop-color="#f2a93b" />
+			</radialGradient>
+			<linearGradient id="diary-egg-ff-wing" x1="0%" y1="0%" x2="100%" y2="100%">
+				<stop offset="0%" stop-color="rgba(255, 255, 255, 0.92)" />
+				<stop offset="100%" stop-color="rgba(206, 224, 255, 0.42)" />
+			</linearGradient>
+		</defs>
+
+		<circle cx="24" cy="30" r="16" fill="url(#diary-egg-ff-aura)" />
+
+		<!-- Left & right fluttering wings -->
+		<g class="diary-egg-wing diary-egg-wing--left">
+			<path
+				d="M22 21 C14 10, 6 12, 8 21 C10 27, 17 26, 22 23 Z"
+				fill="url(#diary-egg-ff-wing)"
+				stroke="#3d342d"
+				stroke-width="1.15"
+				stroke-linejoin="round"
+			/>
+			<path d="M19 21 C15 17, 12 17, 10 20" fill="none" stroke="rgba(61, 52, 45, 0.35)" stroke-width="0.9" stroke-linecap="round" />
+		</g>
+		<g class="diary-egg-wing diary-egg-wing--right">
+			<path
+				d="M26 21 C34 10, 42 12, 40 21 C38 27, 31 26, 26 23 Z"
+				fill="url(#diary-egg-ff-wing)"
+				stroke="#3d342d"
+				stroke-width="1.15"
+				stroke-linejoin="round"
+			/>
+			<path d="M29 21 C33 17, 36 17, 38 20" fill="none" stroke="rgba(61, 52, 45, 0.35)" stroke-width="0.9" stroke-linecap="round" />
+		</g>
+
+		<!-- Glowing abdomen lantern -->
+		<ellipse
+			class="diary-egg-lantern"
+			cx="24"
+			cy="30"
+			rx="6.2"
+			ry="7.8"
+			fill="url(#diary-egg-ff-lantern)"
+			stroke="#3d342d"
+			stroke-width="1.2"
+		/>
+		<path d="M18.6 28.2 Q24 29.8 29.4 28.2" fill="none" stroke="rgba(110, 74, 22, 0.35)" stroke-width="1" />
+		<ellipse cx="22.4" cy="29.5" rx="2.1" ry="3.2" fill="#fffef6" opacity="0.72" />
+
+		<!-- Thorax & head -->
+		<ellipse cx="24" cy="21" rx="4.4" ry="3.6" fill="#3d342d" />
+		<circle cx="24" cy="15.4" r="3.4" fill="#2b2320" />
+		<!-- Tiny antennae & eyes -->
+		<path d="M22.2 12.6 Q19.6 8.6 17.2 8.4" fill="none" stroke="#2b2320" stroke-width="1.2" stroke-linecap="round" />
+		<path d="M25.8 12.6 Q28.4 8.6 30.8 8.4" fill="none" stroke="#2b2320" stroke-width="1.2" stroke-linecap="round" />
+		<circle cx="22.6" cy="15" r="0.85" fill="#fff8d6" />
+		<circle cx="25.4" cy="15" r="0.85" fill="#fff8d6" />
+	</svg>
+	<span class="diary-egg-firefly-whisper" aria-hidden="true">跟我来…</span>
+</button>
+
+<div
+	class="diary-egg-stage"
+	hidden
+	role="dialog"
+	aria-modal="true"
+	aria-label="私人日记入口漫画"
+	data-diary-egg-stage
+>
+	<div class="diary-egg-backdrop" data-diary-egg-backdrop></div>
+	<div class="diary-egg-comic-sheet" tabindex="-1" data-diary-egg-sheet>
+		<div class="diary-egg-sheet-head">
+			<span class="diary-egg-sheet-kicker">SECRET ENTRY · 03</span>
+			<span class="diary-egg-sheet-tag">✦ 夜光引路</span>
+		</div>
+
+		<div class="diary-egg-panels">
+			<!-- Panel 1: 叩门 · 唤光 -->
+			<figure class="diary-egg-panel diary-egg-panel--1">
+				<div class="diary-egg-panel-art">
+					<svg class="diary-egg-panel-svg" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+						<defs>
+							<linearGradient id="diary-egg-p1-sky" x1="0%" y1="0%" x2="0%" y2="100%">
+								<stop offset="0%" stop-color="#14182b" />
+								<stop offset="100%" stop-color="#272e52" />
+							</linearGradient>
+							<radialGradient id="diary-egg-p1-crack" cx="50%" cy="50%" r="50%">
+								<stop offset="0%" stop-color="#fffce0" />
+								<stop offset="45%" stop-color="#ffd859" stop-opacity="0.85" />
+								<stop offset="100%" stop-color="#f2a93b" stop-opacity="0" />
+							</radialGradient>
+							<pattern id="diary-egg-p1-dots" width="10" height="10" patternUnits="userSpaceOnUse">
+								<circle cx="2" cy="2" r="0.85" fill="rgba(255, 255, 255, 0.08)" />
+							</pattern>
+						</defs>
+
+						<rect width="240" height="240" fill="url(#diary-egg-p1-sky)" />
+						<rect width="240" height="240" fill="url(#diary-egg-p1-dots)" />
+
+						<!-- Distant stars -->
+						<circle cx="158" cy="70" r="1.3" fill="#ffe79e" opacity="0.8" />
+						<circle cx="198" cy="84" r="1.1" fill="#ffffff" opacity="0.55" />
+						<circle cx="182" cy="146" r="1" fill="#ffe79e" opacity="0.55" />
+
+						<!-- Dark wooden wall corner -->
+						<path d="M0 36 L112 36 L112 208 L0 208 Z" fill="#251d24" stroke="#18181f" stroke-width="2.5" />
+						<line x1="36" y1="36" x2="36" y2="208" stroke="#191319" stroke-width="1.5" />
+						<line x1="74" y1="36" x2="74" y2="208" stroke="#191319" stroke-width="1.5" />
+						<line x1="0" y1="92" x2="112" y2="92" stroke="#191319" stroke-width="1.2" opacity="0.7" />
+						<line x1="0" y1="152" x2="112" y2="152" stroke="#191319" stroke-width="1.2" opacity="0.7" />
+
+						<!-- Ground silhouette -->
+						<path d="M0 184 Q120 176 240 186 L240 240 L0 240 Z" fill="#101321" />
+
+						<!-- Glowing vertical crack in wall edge -->
+						<ellipse cx="106" cy="118" rx="34" ry="42" fill="url(#diary-egg-p1-crack)" />
+						<path
+							d="M107 82 L103 102 L108 118 L104 136 L107 154"
+							fill="none"
+							stroke="#fffce0"
+							stroke-width="3.2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+
+						<!-- Animated knock ripples -->
+						<circle class="diary-egg-p1-ring diary-egg-p1-ring--a" cx="106" cy="118" r="16" fill="none" stroke="#ffe26a" stroke-width="2" />
+						<circle class="diary-egg-p1-ring diary-egg-p1-ring--b" cx="106" cy="118" r="28" fill="none" stroke="#ffe26a" stroke-width="1.5" />
+
+						<!-- Comic impact ticks -->
+						<g class="diary-egg-p1-ticks" stroke="#fff2aa" stroke-width="2" stroke-linecap="round">
+							<line x1="122" y1="98" x2="132" y2="90" />
+							<line x1="126" y1="118" x2="138" y2="118" />
+							<line x1="122" y1="138" x2="132" y2="146" />
+						</g>
+
+						<!-- Motion arc from crack to firefly -->
+						<path
+							d="M110 120 Q142 114 176 88"
+							fill="none"
+							stroke="#ffe26a"
+							stroke-width="1.6"
+							stroke-dasharray="3 4"
+							stroke-linecap="round"
+							opacity="0.82"
+						/>
+
+						<!-- Emerging miniature firefly -->
+						<g class="diary-egg-p1-bug">
+							<circle cx="178" cy="86" r="16" fill="url(#diary-egg-p1-crack)" opacity="0.85" />
+							<ellipse cx="174" cy="82" rx="4.5" ry="2.4" transform="rotate(-24 174 82)" fill="rgba(255,255,255,0.85)" />
+							<ellipse cx="182" cy="82" rx="4.5" ry="2.4" transform="rotate(24 182 82)" fill="rgba(255,255,255,0.85)" />
+							<circle cx="178" cy="88" r="4.8" fill="#ffe26a" stroke="#18181f" stroke-width="1.1" />
+							<circle cx="178" cy="83.5" r="2.6" fill="#2b2320" />
+						</g>
+					</svg>
+					<span class="diary-egg-sfx diary-egg-sfx--1" aria-hidden="true">叩! 叩! 叩!</span>
+				</div>
+				<figcaption class="diary-egg-caption">
+					<span class="diary-egg-cap-num">01</span>
+					<span>敲了三下，缝隙里飞出一点光</span>
+				</figcaption>
+			</figure>
+
+			<!-- Panel 2: 引路 · 寻门 -->
+			<figure class="diary-egg-panel diary-egg-panel--2">
+				<div class="diary-egg-panel-art">
+					<svg class="diary-egg-panel-svg" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+						<defs>
+							<linearGradient id="diary-egg-p2-sky" x1="0%" y1="0%" x2="100%" y2="100%">
+								<stop offset="0%" stop-color="#10152a" />
+								<stop offset="100%" stop-color="#222a4d" />
+							</linearGradient>
+							<radialGradient id="diary-egg-p2-glow" cx="50%" cy="50%" r="50%">
+								<stop offset="0%" stop-color="#fffce0" />
+								<stop offset="45%" stop-color="#ffe26a" stop-opacity="0.7" />
+								<stop offset="100%" stop-color="#f2a93b" stop-opacity="0" />
+							</radialGradient>
+							<pattern id="diary-egg-p2-dots" width="12" height="12" patternUnits="userSpaceOnUse">
+								<circle cx="3" cy="3" r="0.8" fill="rgba(255, 255, 255, 0.07)" />
+							</pattern>
+						</defs>
+
+						<rect width="240" height="240" fill="url(#diary-egg-p2-sky)" />
+						<rect width="240" height="240" fill="url(#diary-egg-p2-dots)" />
+
+						<!-- Crescent moon & stars -->
+						<path d="M52 70 A12 12 0 1 0 64 84 A9.5 9.5 0 1 1 52 70 Z" fill="#ffeaa3" />
+						<path class="diary-egg-p2-star" d="M88 68 L90 73 L95 75 L90 77 L88 82 L86 77 L81 75 L86 73 Z" fill="#fff4c4" />
+						<circle cx="118" cy="86" r="1.4" fill="#ffeaa3" opacity="0.8" />
+						<circle cx="136" cy="70" r="1.2" fill="#ffffff" opacity="0.65" />
+
+						<!-- Dark meadow hills -->
+						<path d="M0 166 Q68 152 132 168 T240 164 L240 240 L0 240 Z" fill="#121728" />
+						<path d="M0 180 Q90 168 176 184 L240 178 L240 240 L0 240 Z" fill="#0c0f1c" />
+
+						<!-- Secret arched hardcover-diary door on the right -->
+						<g class="diary-egg-p2-door">
+							<ellipse cx="164" cy="118" rx="46" ry="52" fill="url(#diary-egg-p2-glow)" opacity="0.65" />
+							<path
+								d="M148 182 L148 102 A33 33 0 0 1 214 102 L214 182 Z"
+								fill="#3c2b28"
+								stroke="#18181f"
+								stroke-width="2.5"
+							/>
+							<path
+								d="M156 176 L156 105 A25 25 0 0 1 206 105 L206 176 Z"
+								fill="#4d3732"
+								stroke="#291d1b"
+								stroke-width="1.5"
+							/>
+							<!-- Door rim highlight from firefly -->
+							<path
+								d="M149 178 L149 102 A32 32 0 0 1 180 70"
+								fill="none"
+								stroke="#ffe26a"
+								stroke-width="2.2"
+								stroke-linecap="round"
+								opacity="0.85"
+							/>
+							<!-- Hanging bookmark ribbon -->
+							<path d="M192 104 L192 152 L196 146 L200 152 L200 104 Z" fill="#c94b4b" stroke="#18181f" stroke-width="1.1" />
+							<!-- Brass keyhole & crescent emblem -->
+							<circle cx="181" cy="122" r="6.5" fill="#f2b84b" stroke="#18181f" stroke-width="1.2" />
+							<circle cx="181" cy="120.5" r="2" fill="#18181f" />
+							<path d="M179.8 121.5 L182.2 121.5 L183 126 L179 126 Z" fill="#18181f" />
+						</g>
+
+						<!-- Animated sweeping golden flight trail -->
+						<path
+							class="diary-egg-p2-trail"
+							pathLength="100"
+							d="M20 144 C56 154, 74 102, 108 112 C132 120, 142 132, 162 118"
+							fill="none"
+							stroke="#ffe26a"
+							stroke-width="2.4"
+							stroke-dasharray="100"
+							stroke-dashoffset="100"
+							stroke-linecap="round"
+						/>
+						<path
+							d="M20 144 C56 154, 74 102, 108 112 C132 120, 142 132, 162 118"
+							fill="none"
+							stroke="#ffe26a"
+							stroke-width="1.4"
+							stroke-dasharray="3 6"
+							stroke-linecap="round"
+							opacity="0.45"
+						/>
+
+						<!-- Firefly hovering in front of the keyhole -->
+						<g class="diary-egg-p2-bug">
+							<circle cx="162" cy="118" r="18" fill="url(#diary-egg-p2-glow)" />
+							<ellipse cx="158" cy="114" rx="4.4" ry="2.2" transform="rotate(-22 158 114)" fill="rgba(255,255,255,0.88)" />
+							<ellipse cx="166" cy="114" rx="4.4" ry="2.2" transform="rotate(22 166 114)" fill="rgba(255,255,255,0.88)" />
+							<circle cx="162" cy="120" r="4.6" fill="#ffe26a" stroke="#18181f" stroke-width="1.1" />
+							<circle cx="162" cy="115.6" r="2.5" fill="#2b2320" />
+						</g>
+					</svg>
+					<span class="diary-egg-sfx diary-egg-sfx--2" aria-hidden="true">咻— ✦</span>
+				</div>
+				<figcaption class="diary-egg-caption">
+					<span class="diary-egg-cap-num">02</span>
+					<span>萤火绕过夜色，停在秘密门前</span>
+				</figcaption>
+			</figure>
+
+			<!-- Panel 3: 推门 · 翻页 -->
+			<figure class="diary-egg-panel diary-egg-panel--3">
+				<div class="diary-egg-panel-art">
+					<svg class="diary-egg-panel-svg" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+						<defs>
+							<linearGradient id="diary-egg-p3-wall" x1="0%" y1="0%" x2="0%" y2="100%">
+								<stop offset="0%" stop-color="#191e36" />
+								<stop offset="100%" stop-color="#2a2438" />
+							</linearGradient>
+							<radialGradient id="diary-egg-p3-rays" cx="50%" cy="52%" r="60%">
+								<stop offset="0%" stop-color="#fffef2" />
+								<stop offset="45%" stop-color="#ffe799" />
+								<stop offset="100%" stop-color="#f3b351" />
+							</radialGradient>
+							<radialGradient id="diary-egg-p3-bloom" cx="50%" cy="50%" r="55%">
+								<stop offset="0%" stop-color="rgba(255, 248, 214, 0.72)" />
+								<stop offset="65%" stop-color="rgba(255, 218, 122, 0.18)" />
+								<stop offset="100%" stop-color="rgba(255, 218, 122, 0)" />
+							</radialGradient>
+						</defs>
+
+						<rect width="240" height="240" fill="url(#diary-egg-p3-wall)" />
+
+						<!-- Threshold floor -->
+						<path d="M0 184 L240 184 L240 240 L0 240 Z" fill="#141320" />
+
+						<!-- Radiating light rays behind/outward from doorway -->
+						<g class="diary-egg-p3-light-fan" opacity="0.55">
+							<polygon points="120,124 8,60 40,36" fill="url(#diary-egg-p3-bloom)" />
+							<polygon points="120,124 200,36 232,64" fill="url(#diary-egg-p3-bloom)" />
+							<polygon points="120,124 2,146 16,184" fill="url(#diary-egg-p3-bloom)" />
+							<polygon points="120,124 224,184 238,146" fill="url(#diary-egg-p3-bloom)" />
+						</g>
+
+						<!-- Centered arched doorway frame -->
+						<path
+							d="M66 186 L66 104 A54 54 0 0 1 174 104 L174 186 Z"
+							fill="url(#diary-egg-p3-rays)"
+							stroke="#18181f"
+							stroke-width="2.6"
+						/>
+
+						<!-- Warm golden interior + open diary notebook -->
+						<g class="diary-egg-p3-interior">
+							<path
+								d="M72 184 L72 106 A48 48 0 0 1 168 106 L168 184 Z"
+								fill="url(#diary-egg-p3-rays)"
+							/>
+							<!-- Open diary notebook -->
+							<g transform="translate(0, 2)">
+								<!-- Cover backing -->
+								<path
+									d="M84 106 L120 112 L156 106 L156 149 L120 155 L84 149 Z"
+									fill="#5a3b31"
+									stroke="#18181f"
+									stroke-width="1.5"
+									stroke-linejoin="round"
+								/>
+								<!-- Left page -->
+								<path
+									d="M87 104 Q103 102 120 110 L120 151 Q103 145 87 146 Z"
+									fill="#fffaf0"
+									stroke="#18181f"
+									stroke-width="1.2"
+									stroke-linejoin="round"
+								/>
+								<!-- Right page -->
+								<path
+									d="M153 104 Q137 102 120 110 L120 151 Q137 145 153 146 Z"
+									fill="#fdf4df"
+									stroke="#18181f"
+									stroke-width="1.2"
+									stroke-linejoin="round"
+								/>
+								<!-- Handwritten ink lines -->
+								<path d="M93 114 L113 116 M93 122 L114 124 M93 130 L111 131 M93 138 L108 139" stroke="#7c6c5d" stroke-width="1.3" stroke-linecap="round" />
+								<path d="M127 116 L147 114 M127 124 L146 122 M127 132 L143 130" stroke="#7c6c5d" stroke-width="1.3" stroke-linecap="round" />
+								<!-- Tiny bookmark ribbon -->
+								<path d="M126 149 L126 164 L129 160 L132 164 L132 148 Z" fill="#c94b4b" stroke="#18181f" stroke-width="0.9" />
+							</g>
+
+							<!-- Rising starlight specks inside doorway -->
+							<path class="diary-egg-p3-spark" d="M106 86 L108 90 L112 92 L108 94 L106 98 L104 94 L100 92 L104 90 Z" fill="#ffffff" />
+							<circle class="diary-egg-p3-spark" cx="136" cy="84" r="2.2" fill="#fffdf0" />
+							<circle class="diary-egg-p3-spark" cx="122" cy="76" r="1.6" fill="#ffe26a" />
+						</g>
+
+						<!-- Hinged door leaf that swings open -->
+						<g class="diary-egg-p3-door">
+							<path
+								d="M68 184 L68 104 A52 52 0 0 1 172 104 L172 184 Z"
+								fill="#46312d"
+								stroke="#18181f"
+								stroke-width="2"
+							/>
+							<path
+								d="M78 176 L78 106 A42 42 0 0 1 162 106 L162 176 Z"
+								fill="#563c37"
+								stroke="#2d1f1c"
+								stroke-width="1.4"
+							/>
+							<circle cx="152" cy="126" r="4.5" fill="#f2b84b" stroke="#18181f" stroke-width="1.1" />
+						</g>
+
+						<!-- Floating sparkle accents outside threshold -->
+						<path class="diary-egg-p3-spark" d="M188 86 L190 91 L195 93 L190 95 L188 100 L186 95 L181 93 L186 91 Z" fill="#ffe799" />
+						<circle class="diary-egg-p3-spark" cx="50" cy="96" r="2" fill="#ffe799" />
+					</svg>
+					<span class="diary-egg-sfx diary-egg-sfx--3" aria-hidden="true">咔哒… 哗啦</span>
+				</div>
+				<figcaption class="diary-egg-caption">
+					<span class="diary-egg-cap-num">03</span>
+					<span>欢迎回到，只属于你的那一页</span>
+				</figcaption>
+			</figure>
+		</div>
+
+		<div class="diary-egg-controls">
+			<div class="diary-egg-dots" aria-hidden="true">
+				<span class="diary-egg-dot diary-egg-dot--1"></span>
+				<span class="diary-egg-dot diary-egg-dot--2"></span>
+				<span class="diary-egg-dot diary-egg-dot--3"></span>
+			</div>
+			<div class="diary-egg-actions">
+				<span class="diary-egg-esc-hint">按 Esc 返回 ·</span>
+				<button type="button" class="diary-egg-skip" data-diary-egg-skip>跳过进入 →</button>
+			</div>
+		</div>
+	</div>
+	<div class="diary-egg-veil" aria-hidden="true"></div>
+</div>
+
+<script>
+	(() => {
+		const triggerEl = document.querySelector<HTMLAnchorElement>('[data-diary-egg-trigger]');
+		const hintEl = document.querySelector<HTMLElement>('[data-diary-egg-hint]');
+		const ripplesEl = document.querySelector<HTMLElement>('[data-diary-egg-ripples]');
+		const fireflyEl = document.querySelector<HTMLButtonElement>('[data-diary-egg-firefly]');
+		const stageEl = document.querySelector<HTMLElement>('[data-diary-egg-stage]');
+		const backdropEl = document.querySelector<HTMLElement>('[data-diary-egg-backdrop]');
+		const sheetEl = document.querySelector<HTMLElement>('[data-diary-egg-sheet]');
+		const skipBtnEl = document.querySelector<HTMLButtonElement>('[data-diary-egg-skip]');
+
+		if (
+			!triggerEl ||
+			!hintEl ||
+			!ripplesEl ||
+			!fireflyEl ||
+			!stageEl ||
+			!backdropEl ||
+			!sheetEl ||
+			!skipBtnEl ||
+			triggerEl.dataset.eggInit === '1'
+		) {
+			return;
+		}
+
+		const trigger: HTMLAnchorElement = triggerEl;
+		const hint: HTMLElement = hintEl;
+		const ripples: HTMLElement = ripplesEl;
+		const firefly: HTMLButtonElement = fireflyEl;
+		const stage: HTMLElement = stageEl;
+		const backdrop: HTMLElement = backdropEl;
+		const sheet: HTMLElement = sheetEl;
+		const skipBtn: HTMLButtonElement = skipBtnEl;
+
+		trigger.dataset.eggInit = '1';
+
+		// Portal firefly and comic overlay to body so fixed coordinates stay viewport-relative.
+		document.body.append(firefly, stage);
+
+		const fireflySvg = firefly.querySelector<SVGSVGElement>('.diary-egg-firefly-svg');
+		const targetHref = trigger.getAttribute('href') || '/diary/';
+		const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		const prefersReducedMotion = () => reducedMotionQuery.matches;
+
+		type EggState = 'idle' | 'knocking' | 'firefly' | 'comic' | 'navigating';
+		let state: EggState = 'idle';
+		let knockCount = 0;
+		let knockResetTimer = 0;
+		let hintHideTimer = 0;
+		let vanishTimer = 0;
+		let vanishFinishTimer = 0;
+		let whisperTimer = 0;
+		let rafId = 0;
+		let activeDustCount = 0;
+		let comicOpenedAt = 0;
+		let isEntering = false;
+		let lastTriggerViaKeyboard = false;
+		const stageTimers: number[] = [];
+
+		let startX = 0;
+		let startY = 0;
+		let anchorX = 0;
+		let anchorY = 0;
+		let currentX = 0;
+		let currentY = 0;
+		let flightDir = 1;
+		let isFireflyHovered = false;
+
+		let audioCtx: AudioContext | null = null;
+
+		const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
+		const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+		const randRange = (min: number, max: number) => min + Math.random() * (max - min);
+
+		function getAudioContext(): AudioContext | null {
+			try {
+				const Ctx =
+					window.AudioContext ||
+					(window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+				if (!Ctx) return null;
+				if (!audioCtx) audioCtx = new Ctx();
+				if (audioCtx.state === 'suspended') {
+					void audioCtx.resume();
+				}
+				return audioCtx;
+			} catch {
+				return null;
+			}
+		}
+
+		function playShimmer(ctx: AudioContext, startTime: number, freqs: number[], gainPeak: number, duration: number) {
+			for (const freq of freqs) {
+				const osc = ctx.createOscillator();
+				const gain = ctx.createGain();
+				osc.type = 'sine';
+				osc.frequency.setValueAtTime(freq, startTime);
+				gain.gain.setValueAtTime(0.0001, startTime);
+				gain.gain.linearRampToValueAtTime(gainPeak, startTime + 0.015);
+				gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+				osc.connect(gain);
+				gain.connect(ctx.destination);
+				osc.start(startTime);
+				osc.stop(startTime + duration + 0.02);
+			}
+		}
+
+		function playKnock(step: 1 | 2 | 3) {
+			try {
+				const ctx = getAudioContext();
+				if (!ctx) return;
+				const now = ctx.currentTime;
+				const baseFreq = step === 1 ? 190 : step === 2 ? 220 : 260;
+
+				// Hollow wooden knock body
+				const osc = ctx.createOscillator();
+				const bodyGain = ctx.createGain();
+				osc.type = 'triangle';
+				osc.frequency.setValueAtTime(baseFreq, now);
+				osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.44, now + 0.065);
+				bodyGain.gain.setValueAtTime(0.0001, now);
+				bodyGain.gain.linearRampToValueAtTime(0.14, now + 0.004);
+				bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.085);
+				osc.connect(bodyGain);
+				bodyGain.connect(ctx.destination);
+				osc.start(now);
+				osc.stop(now + 0.095);
+
+				// Short bandpass noise burst for wooden tap transient
+				const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * 0.025));
+				const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+				const data = buffer.getChannelData(0);
+				for (let i = 0; i < bufferSize; i++) {
+					data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+				}
+				const noise = ctx.createBufferSource();
+				noise.buffer = buffer;
+				const filter = ctx.createBiquadFilter();
+				filter.type = 'bandpass';
+				filter.frequency.setValueAtTime(1200, now);
+				filter.Q.setValueAtTime(2.2, now);
+				const noiseGain = ctx.createGain();
+				noiseGain.gain.setValueAtTime(0.07, now);
+				noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+				noise.connect(filter);
+				filter.connect(noiseGain);
+				noiseGain.connect(ctx.destination);
+				noise.start(now);
+				noise.stop(now + 0.03);
+
+				if (step === 3) {
+					playShimmer(ctx, now + 0.04, [784, 1175], 0.04, 0.45);
+				}
+			} catch {
+				// Audio is optional; ignore browser restrictions
+			}
+		}
+
+		function playBeckonChime() {
+			try {
+				const ctx = getAudioContext();
+				if (!ctx) return;
+				playShimmer(ctx, ctx.currentTime, [784, 1175], 0.032, 0.36);
+			} catch {
+				// Ignore
+			}
+		}
+
+		function playFireflyCatch() {
+			try {
+				const ctx = getAudioContext();
+				if (!ctx) return;
+				const now = ctx.currentTime;
+				const notes = [523.25, 659.25, 783.99, 987.77, 1174.66];
+				notes.forEach((freq, idx) => {
+					const t = now + idx * 0.065;
+					playShimmer(ctx, t, [freq], 0.05, 0.55);
+				});
+			} catch {
+				// Ignore
+			}
+		}
+
+		function playDoorChime() {
+			try {
+				const ctx = getAudioContext();
+				if (!ctx) return;
+				const now = ctx.currentTime;
+
+				// Tiny latch click
+				const latchOsc = ctx.createOscillator();
+				const latchGain = ctx.createGain();
+				latchOsc.type = 'triangle';
+				latchOsc.frequency.setValueAtTime(1400, now);
+				latchOsc.frequency.exponentialRampToValueAtTime(760, now + 0.026);
+				latchGain.gain.setValueAtTime(0.0001, now);
+				latchGain.gain.linearRampToValueAtTime(0.045, now + 0.003);
+				latchGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.032);
+				latchOsc.connect(latchGain);
+				latchGain.connect(ctx.destination);
+				latchOsc.start(now);
+				latchOsc.stop(now + 0.035);
+
+				// Warm open-fifth chord
+				playShimmer(ctx, now + 0.06, [392, 587.33, 880], 0.032, 0.65);
+			} catch {
+				// Ignore
+			}
+		}
+
+		function clearStageTimers() {
+			while (stageTimers.length) {
+				const id = stageTimers.pop();
+				if (id !== undefined) window.clearTimeout(id);
+			}
+		}
+
+		function addStageTimer(fn: () => void, ms: number) {
+			const id = window.setTimeout(fn, ms);
+			stageTimers.push(id);
+			return id;
+		}
+
+		function replayClass(el: Element, cls: string) {
+			el.classList.remove(cls);
+			void (el as HTMLElement).offsetWidth;
+			el.classList.add(cls);
+		}
+
+		function showHint(text: string) {
+			window.clearTimeout(hintHideTimer);
+			hint.textContent = text;
+			replayClass(hint, 'is-visible');
+			hintHideTimer = window.setTimeout(() => {
+				hint.classList.remove('is-visible');
+			}, 1150);
+		}
+
+		function spawnRipple() {
+			const el = document.createElement('span');
+			el.className = 'diary-egg-ripple';
+			ripples.appendChild(el);
+			let done = false;
+			const cleanup = () => {
+				if (done) return;
+				done = true;
+				el.remove();
+			};
+			el.addEventListener('animationend', cleanup, { once: true });
+			window.setTimeout(cleanup, 650);
+		}
+
+		function spawnDotSparks() {
+			if (prefersReducedMotion()) return;
+			const count = 7;
+			for (let i = 0; i < count; i++) {
+				const spark = document.createElement('span');
+				spark.className = 'diary-egg-spark';
+				const angle = (-Math.PI * 0.92) + (i / (count - 1)) * (Math.PI * 0.84) + randRange(-0.15, 0.15);
+				const dist = randRange(18, 36);
+				spark.style.setProperty('--dx', `${(Math.cos(angle) * dist).toFixed(1)}px`);
+				spark.style.setProperty('--dy', `${(Math.sin(angle) * dist).toFixed(1)}px`);
+				spark.style.setProperty('--delay', `${(i * 18).toFixed(0)}ms`);
+				ripples.appendChild(spark);
+				let done = false;
+				const cleanup = () => {
+					if (done) return;
+					done = true;
+					spark.remove();
+				};
+				spark.addEventListener('animationend', cleanup, { once: true });
+				window.setTimeout(cleanup, 750);
+			}
+		}
+
+		function spawnCatchSparks(x: number, y: number) {
+			if (prefersReducedMotion()) return;
+			const count = 10;
+			for (let i = 0; i < count; i++) {
+				const spark = document.createElement('span');
+				spark.className = 'diary-egg-catch-spark';
+				const angle = (i / count) * Math.PI * 2 + randRange(-0.18, 0.18);
+				const dist = randRange(24, 54);
+				spark.style.left = `${x.toFixed(1)}px`;
+				spark.style.top = `${y.toFixed(1)}px`;
+				spark.style.setProperty('--dx', `${(Math.cos(angle) * dist).toFixed(1)}px`);
+				spark.style.setProperty('--dy', `${(Math.sin(angle) * dist).toFixed(1)}px`);
+				document.body.appendChild(spark);
+				let done = false;
+				const cleanup = () => {
+					if (done) return;
+					done = true;
+					spark.remove();
+				};
+				spark.addEventListener('animationend', cleanup, { once: true });
+				window.setTimeout(cleanup, 700);
+			}
+		}
+
+		function spawnDustMote(x: number, y: number) {
+			if (prefersReducedMotion() || activeDustCount >= 16) return;
+			activeDustCount++;
+			const mote = document.createElement('span');
+			mote.className = 'diary-egg-dust';
+			mote.style.left = `${(x + randRange(-4, 4)).toFixed(1)}px`;
+			mote.style.top = `${(y + randRange(2, 8)).toFixed(1)}px`;
+			mote.style.setProperty('--drift-x', `${randRange(-12, 12).toFixed(1)}px`);
+			document.body.appendChild(mote);
+			let done = false;
+			const cleanup = () => {
+				if (done) return;
+				done = true;
+				activeDustCount = Math.max(0, activeDustCount - 1);
+				mote.remove();
+			};
+			mote.addEventListener('animationend', cleanup, { once: true });
+			window.setTimeout(cleanup, 1100);
+		}
+
+		function stopFlightLoop() {
+			if (rafId) {
+				window.cancelAnimationFrame(rafId);
+				rafId = 0;
+			}
+		}
+
+		function dismissFirefly() {
+			stopFlightLoop();
+			window.clearTimeout(vanishTimer);
+			window.clearTimeout(whisperTimer);
+			if (state !== 'firefly') return;
+			firefly.classList.add('is-leaving');
+			firefly.classList.remove('is-whispering', 'is-beckoning');
+			window.clearTimeout(vanishFinishTimer);
+			vanishFinishTimer = window.setTimeout(() => {
+				if (state === 'firefly') {
+					firefly.hidden = true;
+					firefly.classList.remove('is-leaving');
+					state = 'idle';
+				}
+			}, 450);
+		}
+
+		function scheduleFireflyVanish() {
+			window.clearTimeout(vanishTimer);
+			vanishTimer = window.setTimeout(() => {
+				dismissFirefly();
+			}, 18000);
+		}
+
+		function updateFireflyPosition(x: number, y: number, scale: number) {
+			currentX = x;
+			currentY = y;
+			firefly.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) scale(${scale.toFixed(3)})`;
+		}
+
+		function spawnFirefly(viaKeyboard: boolean) {
+			stopFlightLoop();
+			window.clearTimeout(vanishFinishTimer);
+			window.clearTimeout(whisperTimer);
+
+			const rect = trigger.getBoundingClientRect();
+			startX = rect.left + rect.width / 2;
+			startY = rect.top + rect.height / 2;
+			flightDir = Math.random() > 0.5 ? 1 : -1;
+			anchorX = clamp(startX + flightDir * randRange(28, 62), 56, window.innerWidth - 56);
+			anchorY = clamp(startY - randRange(76, 112), 72, window.innerHeight - 88);
+			isFireflyHovered = false;
+
+			firefly.classList.remove('is-leaving', 'is-beckoning', 'is-whispering');
+			if (fireflySvg) fireflySvg.style.transform = '';
+			updateFireflyPosition(startX, startY, prefersReducedMotion() ? 1 : 0.25);
+			firefly.hidden = false;
+			state = 'firefly';
+
+			whisperTimer = window.setTimeout(() => {
+				if (state === 'firefly') {
+					firefly.classList.add('is-whispering');
+				}
+			}, 1800);
+
+			scheduleFireflyVanish();
+
+			if (viaKeyboard) {
+				firefly.focus({ preventScroll: true });
+			}
+
+			if (prefersReducedMotion()) {
+				updateFireflyPosition(anchorX, anchorY, 1);
+				return;
+			}
+
+			const spawnTime = performance.now();
+			let lastFrameTime = spawnTime;
+			let phaseTime = 0;
+			let lastDustTime = spawnTime;
+			let prevX = startX;
+			let tilt = 0;
+
+			const tick = (now: number) => {
+				if (state !== 'firefly') {
+					rafId = 0;
+					return;
+				}
+				const elapsed = now - spawnTime;
+				let x: number;
+				let y: number;
+				let scale: number;
+
+				if (elapsed < 700) {
+					const t = elapsed / 700;
+					const ease = 1 - Math.pow(1 - t, 3);
+					const arcX = Math.sin(t * Math.PI) * (-flightDir * 24);
+					const arcY = Math.sin(t * Math.PI) * -14;
+					x = lerp(startX, anchorX, ease) + arcX;
+					y = lerp(startY, anchorY, ease) + arcY;
+					scale = 0.25 + 0.75 * ease;
+				} else {
+					const dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+					const speed = isFireflyHovered ? 0.22 : 1;
+					phaseTime += dt * speed;
+					const dx = Math.sin(phaseTime * 1.15) * 34;
+					const dy = Math.sin(phaseTime * 2.3) * 14 - Math.cos(phaseTime * 0.7) * 6;
+					x = clamp(anchorX + dx, 36, window.innerWidth - 36);
+					y = clamp(anchorY + dy, 48, window.innerHeight - 48);
+					scale = 1;
+				}
+
+				const vx = x - prevX;
+				const targetTilt = clamp(vx * 5, -18, 18);
+				tilt = lerp(tilt, targetTilt, 0.16);
+				if (fireflySvg) {
+					fireflySvg.style.transform = `rotate(${tilt.toFixed(1)}deg)`;
+				}
+
+				updateFireflyPosition(x, y, scale);
+
+				if (now - lastDustTime >= 260 && elapsed > 80) {
+					lastDustTime = now;
+					spawnDustMote(x, y);
+				}
+
+				prevX = x;
+				lastFrameTime = now;
+				rafId = window.requestAnimationFrame(tick);
+			};
+
+			rafId = window.requestAnimationFrame(tick);
+		}
+
+		function resetKnocks() {
+			window.clearTimeout(knockResetTimer);
+			knockCount = 0;
+			delete trigger.dataset.knocks;
+			trigger.classList.remove('is-knocking');
+			if (state === 'knocking') {
+				state = 'idle';
+			}
+		}
+
+		function resetAll(restoreFocus = false) {
+			clearStageTimers();
+			stopFlightLoop();
+			window.clearTimeout(knockResetTimer);
+			window.clearTimeout(hintHideTimer);
+			window.clearTimeout(vanishTimer);
+			window.clearTimeout(vanishFinishTimer);
+			window.clearTimeout(whisperTimer);
+
+			const shouldRestoreFocus =
+				restoreFocus &&
+				(document.activeElement === firefly || stage.contains(document.activeElement));
+
+			knockCount = 0;
+			isEntering = false;
+			delete trigger.dataset.knocks;
+			trigger.classList.remove('is-knocking');
+			hint.classList.remove('is-visible');
+			hint.textContent = '';
+
+			firefly.hidden = true;
+			firefly.classList.remove('is-leaving', 'is-beckoning', 'is-whispering');
+			if (fireflySvg) fireflySvg.style.transform = '';
+
+			stage.hidden = true;
+			stage.classList.remove(
+				'is-playing',
+				'is-step-1',
+				'is-step-2',
+				'is-step-3',
+				'is-entering',
+				'is-reduced'
+			);
+			document.documentElement.classList.remove('diary-egg-scroll-lock');
+
+			state = 'idle';
+
+			if (shouldRestoreFocus) {
+				trigger.focus({ preventScroll: true });
+			}
+		}
+
+		function navigateToDiary() {
+			if (state === 'navigating') return;
+			state = 'navigating';
+			try {
+				sessionStorage.setItem('diary-firefly-arrived', '1');
+			} catch {}
+			window.location.assign(targetHref);
+		}
+
+		function enterNow() {
+			if (state !== 'comic' || isEntering) return;
+			isEntering = true;
+			clearStageTimers();
+			stage.classList.add('is-step-1', 'is-step-2', 'is-step-3', 'is-entering');
+			addStageTimer(() => {
+				navigateToDiary();
+			}, 220);
+		}
+
+		function openComicStage() {
+			clearStageTimers();
+			stopFlightLoop();
+			window.clearTimeout(vanishTimer);
+			window.clearTimeout(vanishFinishTimer);
+			window.clearTimeout(whisperTimer);
+
+			spawnCatchSparks(currentX, currentY);
+			firefly.hidden = true;
+			firefly.classList.remove('is-leaving', 'is-beckoning', 'is-whispering');
+
+			playFireflyCatch();
+
+			state = 'comic';
+			isEntering = false;
+			comicOpenedAt = performance.now();
+
+			const reduced = prefersReducedMotion();
+			stage.classList.remove(
+				'is-playing',
+				'is-step-1',
+				'is-step-2',
+				'is-step-3',
+				'is-entering',
+				'is-reduced'
+			);
+			stage.hidden = false;
+			document.documentElement.classList.add('diary-egg-scroll-lock');
+			void stage.offsetWidth;
+
+			if (reduced) {
+				stage.classList.add('is-reduced', 'is-playing', 'is-step-1', 'is-step-2', 'is-step-3');
+				addStageTimer(() => {
+					if (state !== 'comic') return;
+					isEntering = true;
+					stage.classList.add('is-entering');
+				}, 1000);
+				addStageTimer(() => {
+					navigateToDiary();
+				}, 1350);
+			} else {
+				stage.classList.add('is-playing');
+				addStageTimer(() => {
+					if (state === 'comic') stage.classList.add('is-step-1');
+				}, 120);
+				addStageTimer(() => {
+					if (state === 'comic') stage.classList.add('is-step-2');
+				}, 850);
+				addStageTimer(() => {
+					if (state === 'comic') stage.classList.add('is-step-3');
+				}, 1580);
+				addStageTimer(() => {
+					if (state === 'comic') playDoorChime();
+				}, 1650);
+				addStageTimer(() => {
+					if (state !== 'comic') return;
+					isEntering = true;
+					stage.classList.add('is-entering');
+				}, 2550);
+				addStageTimer(() => {
+					navigateToDiary();
+				}, 3050);
+			}
+
+			if (lastTriggerViaKeyboard) {
+				skipBtn.focus({ preventScroll: true });
+			} else {
+				sheet.focus({ preventScroll: true });
+			}
+		}
+
+		trigger.addEventListener('click', (e) => {
+			if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button !== 0) {
+				return;
+			}
+			e.preventDefault();
+
+			if (state === 'comic' || state === 'navigating') return;
+
+			lastTriggerViaKeyboard = e.detail === 0;
+
+			if (state === 'firefly') {
+				playBeckonChime();
+				replayClass(firefly, 'is-beckoning');
+				scheduleFireflyVanish();
+				return;
+			}
+
+			state = 'knocking';
+			knockCount = Math.min(3, knockCount + 1);
+			window.clearTimeout(knockResetTimer);
+
+			trigger.dataset.knocks = String(knockCount);
+			replayClass(trigger, 'is-knocking');
+			spawnRipple();
+
+			const step = knockCount as 1 | 2 | 3;
+			showHint(step === 1 ? '叩…' : step === 2 ? '叩叩…?' : '✦');
+			playKnock(step);
+
+			if (step < 3) {
+				knockResetTimer = window.setTimeout(() => {
+					resetKnocks();
+				}, 1800);
+			} else {
+				knockCount = 0;
+				delete trigger.dataset.knocks;
+				spawnDotSparks();
+				spawnFirefly(lastTriggerViaKeyboard);
+			}
+		});
+
+		firefly.addEventListener('pointerenter', () => {
+			isFireflyHovered = true;
+			window.clearTimeout(vanishTimer);
+		});
+
+		firefly.addEventListener('pointerleave', () => {
+			isFireflyHovered = false;
+			if (state === 'firefly') scheduleFireflyVanish();
+		});
+
+		firefly.addEventListener('focusin', () => {
+			isFireflyHovered = true;
+			window.clearTimeout(vanishTimer);
+		});
+
+		firefly.addEventListener('focusout', () => {
+			isFireflyHovered = false;
+			if (state === 'firefly') scheduleFireflyVanish();
+		});
+
+		firefly.addEventListener('click', (e) => {
+			if (state !== 'firefly') return;
+			lastTriggerViaKeyboard = e.detail === 0;
+			openComicStage();
+		});
+
+		skipBtn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			enterNow();
+		});
+
+		sheet.addEventListener('click', (e) => {
+			if (state !== 'comic') return;
+			if (e.target instanceof Element && e.target.closest('[data-diary-egg-skip]')) return;
+			if (performance.now() - comicOpenedAt < 380) return;
+			enterNow();
+		});
+
+		backdrop.addEventListener('click', () => {
+			if (state === 'comic') {
+				resetAll(true);
+			}
+		});
+
+		document.addEventListener('keydown', (e) => {
+			if (e.key !== 'Escape') return;
+			if (state === 'firefly' || state === 'comic') {
+				e.preventDefault();
+				resetAll(true);
+			}
+		});
+
+		window.addEventListener('resize', () => {
+			if (state !== 'firefly') return;
+			anchorX = clamp(anchorX, 56, window.innerWidth - 56);
+			anchorY = clamp(anchorY, 72, window.innerHeight - 88);
+			if (prefersReducedMotion()) {
+				updateFireflyPosition(anchorX, anchorY, 1);
+			}
+		});
+
+		window.addEventListener('pageshow', (e) => {
+			if (e.persisted || state === 'comic' || state === 'navigating') {
+				resetAll(false);
+			}
+		});
+	})();
+</script>
+
+<style is:global>
+	html.diary-egg-scroll-lock,
+	html.diary-egg-scroll-lock body {
+		overflow: hidden;
+	}
+
+	.diary-egg-wrap {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		vertical-align: baseline;
+	}
+
+	/* Override global `a` / `a:hover` accent styles so the dot stays inconspicuous */
+	a.diary-egg-trigger {
+		position: relative;
+		display: inline-block;
+		padding: 0.25rem 0.6rem;
+		color: var(--text-muted);
+		text-decoration: none;
+		border-radius: 4px;
+		user-select: none;
+		-webkit-tap-highlight-color: transparent;
+		transition: color 0.25s ease, text-shadow 0.25s ease, transform 0.15s ease;
+	}
+
+	a.diary-egg-trigger:hover,
+	a.diary-egg-trigger[data-knocks] {
+		color: #d68b18;
+		text-shadow: 0 0 8px rgba(242, 169, 59, 0.55);
+	}
+
+	[data-theme="dark"] a.diary-egg-trigger:hover,
+	[data-theme="dark"] a.diary-egg-trigger[data-knocks] {
+		color: #ffe26a;
+		text-shadow: 0 0 10px rgba(255, 226, 106, 0.72);
+	}
+
+	a.diary-egg-trigger[data-knocks="2"] {
+		color: #e4971c;
+		text-shadow: 0 0 12px rgba(255, 200, 72, 0.75);
+	}
+
+	a.diary-egg-trigger[data-knocks="3"] {
+		color: #f6b93b;
+		text-shadow: 0 0 16px rgba(255, 226, 106, 0.95);
+	}
+
+	a.diary-egg-trigger:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	a.diary-egg-trigger.is-knocking {
+		animation: diary-egg-knock-bounce 280ms cubic-bezier(0.3, 1.5, 0.6, 1);
+	}
+
+	.diary-egg-hint {
+		position: absolute;
+		bottom: calc(100% + 4px);
+		left: 50%;
+		transform: translate(-50%, 6px);
+		padding: 2px 7px;
+		border-radius: 999px;
+		background: var(--bg-primary);
+		border: 1px solid var(--border-color);
+		color: var(--text-secondary);
+		font-size: 0.72rem;
+		line-height: 1.3;
+		white-space: nowrap;
+		box-shadow: var(--shadow-sm);
+		pointer-events: none;
+		opacity: 0;
+		z-index: 20;
+	}
+
+	.diary-egg-hint.is-visible {
+		animation: diary-egg-hint-pop 1.1s ease forwards;
+	}
+
+	.diary-egg-ripples {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		overflow: visible;
+	}
+
+	.diary-egg-ripple {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 14px;
+		height: 14px;
+		margin: -7px 0 0 -7px;
+		border-radius: 999px;
+		border: 1.5px solid rgba(235, 162, 48, 0.85);
+		animation: diary-egg-ripple-out 540ms ease-out forwards;
+	}
+
+	[data-theme="dark"] .diary-egg-ripple {
+		border-color: rgba(255, 226, 106, 0.85);
+	}
+
+	.diary-egg-spark,
+	.diary-egg-catch-spark {
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		width: 5px;
+		height: 5px;
+		margin: -2.5px 0 0 -2.5px;
+		border-radius: 999px;
+		background: #ffe26a;
+		box-shadow: 0 0 8px rgba(242, 169, 59, 0.9);
+		pointer-events: none;
+		animation: diary-egg-spark-fly 560ms cubic-bezier(0.2, 0.8, 0.3, 1) var(--delay, 0ms) forwards;
+	}
+
+	.diary-egg-catch-spark {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 6px;
+		height: 6px;
+		margin: -3px 0 0 -3px;
+		z-index: 9999;
+		animation-duration: 520ms;
+	}
+
+	/* Floating Firefly */
+	.diary-egg-firefly[hidden],
+	.diary-egg-stage[hidden] {
+		display: none !important;
+	}
+
+	.diary-egg-firefly {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 56px;
+		height: 56px;
+		margin: -28px 0 0 -28px;
+		padding: 0;
+		border: none;
+		background: transparent;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		z-index: 9990;
+		touch-action: manipulation;
+		-webkit-tap-highlight-color: transparent;
+		will-change: transform, opacity;
+		transition: opacity 0.4s ease;
+	}
+
+	.diary-egg-firefly:focus-visible {
+		outline: 2px solid #ffe26a;
+		outline-offset: 2px;
+		border-radius: 999px;
+	}
+
+	.diary-egg-firefly-halo {
+		position: absolute;
+		inset: 4px;
+		border-radius: 999px;
+		background: radial-gradient(circle, rgba(255, 226, 106, 0.52) 0%, rgba(242, 169, 59, 0.14) 55%, rgba(242, 169, 59, 0) 75%);
+		pointer-events: none;
+		animation: diary-egg-halo-pulse 1.9s ease-in-out infinite;
+	}
+
+	.diary-egg-firefly-svg {
+		position: relative;
+		width: 42px;
+		height: 42px;
+		overflow: visible;
+		filter: drop-shadow(0 3px 6px rgba(34, 24, 14, 0.25));
+		transition: filter 0.2s ease;
+	}
+
+	.diary-egg-firefly:hover .diary-egg-firefly-svg {
+		filter: drop-shadow(0 4px 12px rgba(242, 169, 59, 0.65));
+	}
+
+	.diary-egg-wing {
+		transform-box: fill-box;
+		animation: diary-egg-wing-flutter 200ms ease-in-out infinite alternate;
+	}
+
+	.diary-egg-wing--left {
+		transform-origin: 90% 70%;
+	}
+
+	.diary-egg-wing--right {
+		transform-origin: 10% 70%;
+		animation-name: diary-egg-wing-flutter-right;
+	}
+
+	.diary-egg-lantern {
+		animation: diary-egg-lantern-glow 1.8s ease-in-out infinite;
+	}
+
+	.diary-egg-firefly-whisper {
+		position: absolute;
+		bottom: calc(100% + 2px);
+		left: 50%;
+		transform: translate(-50%, 6px);
+		padding: 3px 8px;
+		border-radius: 999px;
+		background: #fff9e8;
+		border: 1.5px solid #2b2320;
+		color: #2b2320;
+		font-size: 0.72rem;
+		font-weight: 700;
+		line-height: 1.25;
+		white-space: nowrap;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+		pointer-events: none;
+		opacity: 0;
+		transition: opacity 0.25s ease, transform 0.25s ease;
+	}
+
+	.diary-egg-firefly:hover .diary-egg-firefly-whisper,
+	.diary-egg-firefly:focus-visible .diary-egg-firefly-whisper,
+	.diary-egg-firefly.is-whispering .diary-egg-firefly-whisper {
+		opacity: 1;
+		transform: translate(-50%, 0);
+	}
+
+	.diary-egg-firefly.is-beckoning .diary-egg-firefly-halo {
+		animation: diary-egg-beckon-pulse 520ms ease-out;
+	}
+
+	.diary-egg-firefly.is-leaving {
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.diary-egg-dust {
+		position: fixed;
+		width: 4px;
+		height: 4px;
+		margin: -2px 0 0 -2px;
+		border-radius: 999px;
+		background: #ffe26a;
+		box-shadow: 0 0 6px rgba(242, 169, 59, 0.8);
+		pointer-events: none;
+		z-index: 9985;
+		animation: diary-egg-dust-fade 950ms ease-out forwards;
+	}
+
+	/* Fullscreen 3-Panel Comic Overlay */
+	.diary-egg-stage {
+		position: fixed;
+		inset: 0;
+		z-index: 10000;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: clamp(12px, 3vw, 28px);
+		opacity: 0;
+		transition: opacity 0.28s ease;
+	}
+
+	.diary-egg-stage.is-playing {
+		opacity: 1;
+	}
+
+	.diary-egg-backdrop {
+		position: absolute;
+		inset: 0;
+		background:
+			radial-gradient(circle at 50% 48%, rgba(36, 42, 74, 0.35) 0%, rgba(11, 14, 24, 0.92) 72%),
+			rgba(11, 14, 24, 0.88);
+		backdrop-filter: blur(6px);
+		-webkit-backdrop-filter: blur(6px);
+	}
+
+	.diary-egg-comic-sheet {
+		position: relative;
+		z-index: 1;
+		width: min(880px, 100%);
+		background-color: #f5efe2;
+		background-image: radial-gradient(rgba(24, 24, 31, 0.055) 1px, transparent 1px);
+		background-size: 12px 12px;
+		border: 3px solid #18181f;
+		border-radius: 14px;
+		padding: clamp(12px, 2.2vw, 20px);
+		box-shadow:
+			8px 8px 0 rgba(16, 18, 28, 0.9),
+			0 24px 60px rgba(0, 0, 0, 0.55);
+		color: #18181f;
+		outline: none;
+		transform: translateY(14px) scale(0.96);
+		transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1), filter 0.35s ease;
+	}
+
+	.diary-egg-stage.is-playing .diary-egg-comic-sheet {
+		transform: translateY(0) scale(1);
+	}
+
+	.diary-egg-stage.is-entering .diary-egg-comic-sheet {
+		transform: scale(1.025);
+	}
+
+	.diary-egg-sheet-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		margin-bottom: 10px;
+		font-size: 0.72rem;
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		color: #3f3830;
+	}
+
+	.diary-egg-sheet-tag {
+		padding: 2px 8px;
+		border: 1.5px solid #18181f;
+		border-radius: 999px;
+		background: #fff9e6;
+		color: #2b2320;
+		letter-spacing: 0.06em;
+	}
+
+	.diary-egg-panels {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 12px;
+	}
+
+	.diary-egg-panel {
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		border: 2.5px solid #18181f;
+		border-radius: 8px;
+		background: #14182b;
+		overflow: hidden;
+		box-shadow: 3px 3px 0 rgba(24, 24, 31, 0.2);
+		opacity: 0;
+		transform: translateY(16px) scale(0.95);
+		transition: opacity 0.38s ease, transform 0.42s cubic-bezier(0.2, 1.25, 0.4, 1), box-shadow 0.35s ease;
+	}
+
+	.diary-egg-stage.is-step-1 .diary-egg-panel--1,
+	.diary-egg-stage.is-step-2 .diary-egg-panel--2,
+	.diary-egg-stage.is-step-3 .diary-egg-panel--3 {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+
+	.diary-egg-stage.is-entering .diary-egg-panel--3 {
+		box-shadow: 0 0 28px rgba(255, 224, 118, 0.82), 3px 3px 0 rgba(24, 24, 31, 0.25);
+	}
+
+	.diary-egg-panel-art {
+		position: relative;
+		width: 100%;
+		aspect-ratio: 1 / 1;
+		overflow: hidden;
+		background: #14182b;
+	}
+
+	.diary-egg-panel-svg {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	.diary-egg-sfx {
+		position: absolute;
+		top: 10px;
+		left: 10px;
+		padding: 2px 8px;
+		background: #fff6cf;
+		border: 2px solid #18181f;
+		border-radius: 6px;
+		color: #18181f;
+		font-size: 0.74rem;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		box-shadow: 2px 2px 0 #18181f;
+		transform: rotate(-5deg) scale(0.8);
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.diary-egg-sfx--2 {
+		left: auto;
+		right: 10px;
+		transform: rotate(4deg) scale(0.8);
+	}
+
+	.diary-egg-sfx--3 {
+		background: #ffe89e;
+		transform: rotate(-3deg) scale(0.8);
+	}
+
+	.diary-egg-stage.is-step-1 .diary-egg-sfx--1,
+	.diary-egg-stage.is-step-2 .diary-egg-sfx--2,
+	.diary-egg-stage.is-step-3 .diary-egg-sfx--3 {
+		animation: diary-egg-sfx-pop 440ms cubic-bezier(0.2, 1.4, 0.4, 1) 120ms forwards;
+	}
+
+	.diary-egg-caption {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 7px 9px;
+		background: #fbf6eb;
+		border-top: 2px solid #18181f;
+		color: #241f1a;
+		font-size: 0.78rem;
+		font-weight: 600;
+		line-height: 1.3;
+	}
+
+	.diary-egg-cap-num {
+		flex-shrink: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1px 5px;
+		border-radius: 4px;
+		background: #18181f;
+		color: #f5efe2;
+		font-size: 0.65rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+	}
+
+	/* Panel internal animations */
+	.diary-egg-p1-ring {
+		transform-box: fill-box;
+		transform-origin: center;
+		opacity: 0;
+	}
+
+	.diary-egg-stage.is-step-1 .diary-egg-p1-ring--a {
+		animation: diary-egg-p1-wave 1.3s ease-out 180ms infinite;
+	}
+
+	.diary-egg-stage.is-step-1 .diary-egg-p1-ring--b {
+		animation: diary-egg-p1-wave 1.3s ease-out 450ms infinite;
+	}
+
+	.diary-egg-p1-bug {
+		transform-box: fill-box;
+		transform-origin: center;
+	}
+
+	.diary-egg-stage.is-step-1 .diary-egg-p1-bug {
+		animation: diary-egg-p1-bug-emerge 750ms cubic-bezier(0.2, 1, 0.4, 1) 140ms both;
+	}
+
+	.diary-egg-stage.is-step-2 .diary-egg-p2-trail {
+		animation: diary-egg-p2-trail-draw 820ms cubic-bezier(0.3, 0.8, 0.3, 1) 120ms forwards;
+	}
+
+	.diary-egg-p2-bug {
+		transform-box: fill-box;
+		transform-origin: center;
+	}
+
+	.diary-egg-stage.is-step-2 .diary-egg-p2-bug {
+		animation: diary-egg-p2-bug-hover 1.4s ease-in-out 500ms infinite alternate;
+	}
+
+	.diary-egg-stage.is-step-2 .diary-egg-p2-star {
+		animation: diary-egg-star-twinkle 1.2s ease-in-out infinite alternate;
+	}
+
+	.diary-egg-p3-door {
+		transform-box: fill-box;
+		transform-origin: left center;
+		transition: transform 720ms cubic-bezier(0.22, 1, 0.36, 1) 140ms;
+	}
+
+	.diary-egg-stage.is-step-3 .diary-egg-p3-door {
+		transform: scaleX(0.15) skewY(-4deg);
+	}
+
+	.diary-egg-p3-light-fan {
+		transform-box: fill-box;
+		transform-origin: center;
+		opacity: 0;
+		transition: opacity 500ms ease 240ms;
+	}
+
+	.diary-egg-stage.is-step-3 .diary-egg-p3-light-fan {
+		opacity: 0.72;
+	}
+
+	.diary-egg-stage.is-step-3 .diary-egg-p3-spark {
+		animation: diary-egg-p3-spark-rise 1.4s ease-out 260ms infinite alternate;
+	}
+
+	/* Controls */
+	.diary-egg-controls {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		margin-top: 12px;
+	}
+
+	.diary-egg-dots {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.diary-egg-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 999px;
+		background: rgba(24, 24, 31, 0.22);
+		border: 1.5px solid #18181f;
+		transition: width 0.25s ease, background-color 0.25s ease;
+	}
+
+	.diary-egg-stage.is-step-1 .diary-egg-dot--1,
+	.diary-egg-stage.is-step-2 .diary-egg-dot--2,
+	.diary-egg-stage.is-step-3 .diary-egg-dot--3 {
+		width: 18px;
+		background: #f2a93b;
+	}
+
+	.diary-egg-actions {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-left: auto;
+	}
+
+	.diary-egg-esc-hint {
+		font-size: 0.74rem;
+		color: #5b5247;
+	}
+
+	.diary-egg-skip {
+		padding: 5px 12px;
+		border-radius: 8px;
+		border: 2px solid #18181f;
+		background: #fff9e6;
+		color: #18181f;
+		font-size: 0.78rem;
+		font-weight: 700;
+		line-height: 1.2;
+		cursor: pointer;
+		box-shadow: 2px 2px 0 #18181f;
+		transition: transform 0.12s ease, background-color 0.15s ease;
+	}
+
+	.diary-egg-skip:hover {
+		background: #ffe694;
+		transform: translate(-1px, -1px);
+	}
+
+	.diary-egg-skip:active {
+		transform: translate(1px, 1px);
+	}
+
+	.diary-egg-skip:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	/* Finale veil */
+	.diary-egg-veil {
+		position: fixed;
+		inset: 0;
+		z-index: 10002;
+		pointer-events: none;
+		opacity: 0;
+		background: radial-gradient(circle at 50% 50%, #fffef4 0%, #fbf8f1 68%);
+		transition: opacity 0.45s ease;
+	}
+
+	[data-theme="dark"] .diary-egg-veil {
+		background: radial-gradient(circle at 50% 50%, rgba(255, 222, 128, 0.45) 0%, #0d1117 68%);
+	}
+
+	.diary-egg-stage.is-entering .diary-egg-veil {
+		opacity: 1;
+	}
+
+	@media (max-width: 679px) {
+		.diary-egg-panels {
+			grid-template-columns: 1fr;
+			gap: 8px;
+		}
+		.diary-egg-panel {
+			height: clamp(130px, 23vh, 178px);
+		}
+		.diary-egg-panel-art {
+			aspect-ratio: auto;
+			flex: 1;
+			min-height: 0;
+		}
+		.diary-egg-caption {
+			padding: 5px 8px;
+			font-size: 0.74rem;
+		}
+		.diary-egg-esc-hint {
+			display: none;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.diary-egg-firefly-halo,
+		.diary-egg-wing,
+		.diary-egg-lantern,
+		.diary-egg-p1-ring,
+		.diary-egg-p1-bug,
+		.diary-egg-p2-trail,
+		.diary-egg-p2-bug,
+		.diary-egg-p2-star,
+		.diary-egg-p3-spark {
+			animation: none !important;
+		}
+		.diary-egg-p2-trail {
+			stroke-dashoffset: 0;
+		}
+		.diary-egg-stage.is-reduced .diary-egg-panel {
+			opacity: 1;
+			transform: none;
+			transition: none;
+		}
+		.diary-egg-stage.is-reduced .diary-egg-sfx {
+			opacity: 1;
+			transform: rotate(-3deg) scale(1);
+			animation: none !important;
+		}
+		.diary-egg-stage.is-reduced .diary-egg-p3-door {
+			transform: scaleX(0.15) skewY(-4deg);
+			transition: none;
+		}
+		.diary-egg-stage.is-reduced .diary-egg-p3-light-fan {
+			opacity: 0.72;
+			transition: none;
+		}
+	}
+
+	@keyframes diary-egg-knock-bounce {
+		0% { transform: scale(1); }
+		30% { transform: scale(1.6) translateY(-2px); }
+		65% { transform: scale(0.9) translateY(0); }
+		100% { transform: scale(1); }
+	}
+
+	@keyframes diary-egg-hint-pop {
+		0% { opacity: 0; transform: translate(-50%, 6px) scale(0.85); }
+		18% { opacity: 1; transform: translate(-50%, -2px) scale(1); }
+		78% { opacity: 1; transform: translate(-50%, -4px) scale(1); }
+		100% { opacity: 0; transform: translate(-50%, -10px) scale(0.95); }
+	}
+
+	@keyframes diary-egg-ripple-out {
+		0% { transform: scale(0.5); opacity: 0.9; }
+		100% { transform: scale(2.8); opacity: 0; }
+	}
+
+	@keyframes diary-egg-spark-fly {
+		0% { transform: translate(0, 0) scale(1); opacity: 1; }
+		100% { transform: translate(var(--dx), var(--dy)) scale(0.15); opacity: 0; }
+	}
+
+	@keyframes diary-egg-halo-pulse {
+		0%, 100% { transform: scale(0.94); opacity: 0.72; }
+		50% { transform: scale(1.14); opacity: 1; }
+	}
+
+	@keyframes diary-egg-beckon-pulse {
+		0% { transform: scale(1); opacity: 0.9; }
+		50% { transform: scale(1.65); opacity: 1; }
+		100% { transform: scale(1); opacity: 0.75; }
+	}
+
+	@keyframes diary-egg-wing-flutter {
+		0% { transform: rotate(-16deg) scaleY(1); }
+		100% { transform: rotate(12deg) scaleY(0.82); }
+	}
+
+	@keyframes diary-egg-wing-flutter-right {
+		0% { transform: rotate(16deg) scaleY(1); }
+		100% { transform: rotate(-12deg) scaleY(0.82); }
+	}
+
+	@keyframes diary-egg-lantern-glow {
+		0%, 100% { opacity: 0.88; }
+		50% { opacity: 1; }
+	}
+
+	@keyframes diary-egg-dust-fade {
+		0% { transform: translate(0, 0) scale(1); opacity: 0.88; }
+		100% { transform: translate(var(--drift-x, 0px), -14px) scale(0.15); opacity: 0; }
+	}
+
+	@keyframes diary-egg-sfx-pop {
+		0% { opacity: 0; transform: scale(0.65) rotate(-8deg); }
+		65% { opacity: 1; transform: scale(1.08) rotate(-2deg); }
+		100% { opacity: 1; transform: scale(1) rotate(-3deg); }
+	}
+
+	@keyframes diary-egg-p1-wave {
+		0% { transform: scale(0.5); opacity: 0.9; }
+		100% { transform: scale(1.8); opacity: 0; }
+	}
+
+	@keyframes diary-egg-p1-bug-emerge {
+		0% { opacity: 0; transform: translate(-66px, 34px) scale(0.3); }
+		100% { opacity: 1; transform: translate(0, 0) scale(1); }
+	}
+
+	@keyframes diary-egg-p2-trail-draw {
+		from { stroke-dashoffset: 100; }
+		to { stroke-dashoffset: 0; }
+	}
+
+	@keyframes diary-egg-p2-bug-hover {
+		0% { transform: translateY(0); }
+		100% { transform: translateY(-5px); }
+	}
+
+	@keyframes diary-egg-star-twinkle {
+		0% { opacity: 0.55; }
+		100% { opacity: 1; }
+	}
+
+	@keyframes diary-egg-p3-spark-rise {
+		0% { transform: translateY(3px) scale(0.85); opacity: 0.65; }
+		100% { transform: translateY(-4px) scale(1.12); opacity: 1; }
+	}
+</style>

@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import {
-  Button,
-  Input,
-  Dialog,
-  Callout,
-  Loading,
-} from "./ui";
+import { Button, Dialog } from "./ui";
 import {
   type Document,
   type Entry,
@@ -14,11 +8,18 @@ import {
 } from "./types";
 import "./diary.css";
 import {
+  DiaryCommandPalette,
+  DiaryFoyer,
+  FireflyArrivalOverlay,
+  applyThemeTransition,
+  isDiaryTheme,
+  type DiaryThemeKey,
+  type TransitionOrigin,
+} from "./DiaryChrome";
+import {
   JournalView,
   TerminalView,
   MagazineView,
-  isDiaryTheme,
-  type DiaryThemeKey,
   type DiaryViewProps,
 } from "./DiaryThemes";
 
@@ -26,7 +27,8 @@ type Route = { view: string; id: string };
 type HistoryMeta = { idx: number; prev: string | null };
 type PendingNav =
   | { kind: "go"; url: string; replace?: boolean }
-  | { kind: "pop"; delta: number };
+  | { kind: "pop"; delta: number }
+  | { kind: "external"; url: string };
 type Filters = {
   q: string;
   tag: string;
@@ -109,6 +111,15 @@ function readDiaryTheme(): DiaryThemeKey {
   } catch {}
   return "journal";
 }
+function readDarkMode(): boolean {
+  const attr = window.document.documentElement.dataset.theme;
+  if (attr === "dark" || attr === "light") return attr === "dark";
+  try {
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark" || saved === "light") return saved === "dark";
+  } catch {}
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches || false;
+}
 function listURL(f: Filters) {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(f))
@@ -129,6 +140,7 @@ export default function DiaryApp() {
   const [checking, setChecking] = useState(true);
   const [route, setRoute] = useState<Route>(routeAtLocation);
   const [diaryTheme, setDiaryTheme] = useState<DiaryThemeKey>(readDiaryTheme);
+  const [dark, setDark] = useState<boolean>(readDarkMode);
   const [filters, setFilters] = useState<Filters>(filtersAtLocation);
   const [search, setSearch] = useState(filters.q);
   const [showFilters, setShowFilters] = useState(false);
@@ -153,24 +165,77 @@ export default function DiaryApp() {
   const [conflict, setConflict] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [zenMode, setZenMode] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [locking, setLocking] = useState(false);
+  const [arrivedViaFirefly, setArrivedViaFirefly] = useState(false);
   const confirmResolve = useRef<((answer: boolean) => void) | null>(null);
-  const [dark, setDark] = useState(
-    () => window.document.documentElement.dataset.theme === "dark"
+
+  const setDarkMode = useCallback(
+    (nextDark: boolean, origin: TransitionOrigin = null) => {
+      applyThemeTransition(origin, () => {
+        const mode = nextDark ? "dark" : "light";
+        window.document.documentElement.dataset.theme = mode;
+        try {
+          localStorage.setItem("theme", mode);
+        } catch {}
+        setDark(nextDark);
+      });
+    },
+    []
   );
+
+  const setThemeStyle = useCallback(
+    (nextTheme: DiaryThemeKey, origin: TransitionOrigin = null) => {
+      applyThemeTransition(origin, () => {
+        window.document.documentElement.dataset.diaryTheme = nextTheme;
+        try {
+          localStorage.setItem("diary-theme", nextTheme);
+        } catch {}
+        setDiaryTheme(nextTheme);
+      });
+    },
+    []
+  );
+
   useEffect(() => {
     const root = window.document.documentElement;
-    const syncThemeAttrs = () => {
-      setDark(root.dataset.theme === "dark");
-      setDiaryTheme(readDiaryTheme());
+    root.dataset.theme = dark ? "dark" : "light";
+    root.dataset.diaryTheme = diaryTheme;
+  }, [dark, diaryTheme]);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "theme" && (e.newValue === "light" || e.newValue === "dark")) {
+        window.document.documentElement.dataset.theme = e.newValue;
+        setDark(e.newValue === "dark");
+      }
+      if (e.key === "diary-theme" && isDiaryTheme(e.newValue)) {
+        window.document.documentElement.dataset.diaryTheme = e.newValue;
+        setDiaryTheme(e.newValue);
+      }
     };
-    syncThemeAttrs();
-    const observer = new MutationObserver(syncThemeAttrs);
-    observer.observe(root, {
-      attributes: true,
-      attributeFilter: ["data-theme", "data-diary-theme"],
-    });
-    return () => observer.disconnect();
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("diary-firefly-arrived") === "1") {
+        sessionStorage.removeItem("diary-firefly-arrived");
+        if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+          setArrivedViaFirefly(true);
+        }
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!session || (route.view !== "edit" && route.view !== "new")) {
+      setZenMode(false);
+    }
+  }, [session, route.view]);
+
   useEffect(() => () => confirmResolve.current?.(false), []);
   function ask(options: Confirmation) {
     confirmResolve.current?.(false);
@@ -193,6 +258,8 @@ export default function DiaryApp() {
   const curIdx = useRef(currentHistoryMeta().idx);
   const pendingNav = useRef<PendingNav | null>(null);
   const bypassDirty = useRef(false);
+  const allowUnload = useRef(false);
+  const pendingSearchFocus = useRef(false);
   const generation = useRef(0);
   const listGeneration = useRef(0);
   const operation = useRef<{ id: string; method: string; body: string } | null>(
@@ -235,6 +302,8 @@ export default function DiaryApp() {
     setDeleteTarget(null);
     setLeaveTo(null);
     setConflict(false);
+    setZenMode(false);
+    setPaletteOpen(false);
     settleConfirmation(false);
     setChecking(false);
   }, []);
@@ -339,9 +408,12 @@ export default function DiaryApp() {
   const runNav = (nav: PendingNav) => {
     if (nav.kind === "go") {
       go(nav.url, nav.replace);
-    } else {
+    } else if (nav.kind === "pop") {
       bypassDirty.current = true;
       history.go(nav.delta);
+    } else {
+      allowUnload.current = true;
+      window.location.assign(nav.url);
     }
   };
   const navigate = (url: string, replace = false) => {
@@ -355,6 +427,19 @@ export default function DiaryApp() {
       return;
     }
     go(url, replace);
+  };
+  const returnToBlog = () => {
+    if (busy || uncertain) {
+      setError("请先核对当前操作结果");
+      return;
+    }
+    if (dirty) {
+      pendingNav.current = { kind: "external", url: "/" };
+      setLeaveTo("/");
+      return;
+    }
+    allowUnload.current = true;
+    window.location.assign("/");
   };
   const goBack = () => {
     if (busy || uncertain) {
@@ -397,10 +482,14 @@ export default function DiaryApp() {
       curIdx.current = 0;
     }
     const unload = (e: BeforeUnloadEvent) => {
-      if (editRef.current.dirty || operation.current) {
+      if (!allowUnload.current && (editRef.current.dirty || operation.current)) {
         e.preventDefault();
         e.returnValue = "";
       }
+    };
+    const pageshow = () => {
+      allowUnload.current = false;
+      setLocking(false);
     };
     const pop = () => {
       const target = location.pathname + location.search;
@@ -427,9 +516,11 @@ export default function DiaryApp() {
       navRef.current.syncFromLocation();
     };
     window.addEventListener("beforeunload", unload);
+    window.addEventListener("pageshow", pageshow);
     window.addEventListener("popstate", pop);
     return () => {
       window.removeEventListener("beforeunload", unload);
+      window.removeEventListener("pageshow", pageshow);
       window.removeEventListener("popstate", pop);
     };
   }, []);
@@ -439,6 +530,16 @@ export default function DiaryApp() {
     }, 300);
     return () => clearTimeout(t);
   }, [search]);
+  useEffect(() => {
+    if (pendingSearchFocus.current && route.view === "list") {
+      pendingSearchFocus.current = false;
+      requestAnimationFrame(() => {
+        window.document
+          .querySelector<HTMLElement>(".diary-search-input")
+          ?.focus();
+      });
+    }
+  }, [route.view]);
   function updateFilters(update: Partial<Filters>, push = false) {
     const next = { ...filters, ...update, page: update.page ?? 1 };
     setFilters(next);
@@ -632,9 +733,9 @@ export default function DiaryApp() {
     if (
       dirty &&
       !(await ask({
-        title: "退出登录？",
-        message: "退出将丢弃当前页面的未保存内容。",
-        confirmLabel: "放弃修改并退出",
+        title: "锁定并离开？",
+        message: "锁定将丢弃当前页面的未保存内容并返回门厅。",
+        confirmLabel: "放弃修改并锁定",
         danger: true,
       }))
     )
@@ -642,12 +743,15 @@ export default function DiaryApp() {
     setBusy(true);
     try {
       await request("/auth/logout", { method: "POST" });
+      setLocking(true);
+      await new Promise((r) => setTimeout(r, 220));
       clearSensitive(false);
       channel.current?.postMessage("logout");
       go("/diary/", true);
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      setLocking(false);
       setBusy(false);
     }
   }
@@ -779,6 +883,9 @@ export default function DiaryApp() {
   saveRef.current = save;
   const modalOpen = useRef(false);
   modalOpen.current = !!(confirmation || deleteTarget || leaveTo);
+  const keyStateRef = useRef({ zenMode, paletteOpen });
+  keyStateRef.current = { zenMode, paletteOpen };
+
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
@@ -788,12 +895,49 @@ export default function DiaryApp() {
         ["edit", "new"].includes(editRef.current.route.view)
       ) {
         e.preventDefault();
-        if (!modalOpen.current) void saveRef.current();
+        if (!modalOpen.current && !keyStateRef.current.paletteOpen) {
+          void saveRef.current();
+        }
+        return;
+      }
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.key.toLowerCase() === "k" &&
+        sessionRef.current
+      ) {
+        if (!modalOpen.current) {
+          e.preventDefault();
+          setPaletteOpen((v) => !v);
+        }
+        return;
+      }
+      if (
+        e.key === "Escape" &&
+        keyStateRef.current.zenMode &&
+        !keyStateRef.current.paletteOpen &&
+        !modalOpen.current
+      ) {
+        e.preventDefault();
+        setZenMode(false);
       }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, []);
+
+  const focusSearch = useCallback(() => {
+    if (route.view !== "list" && diaryTheme !== "terminal") {
+      pendingSearchFocus.current = true;
+      navigate(listURL(filters));
+      return;
+    }
+    requestAnimationFrame(() => {
+      window.document
+        .querySelector<HTMLElement>(".diary-search-input")
+        ?.focus();
+    });
+  }, [route.view, diaryTheme, filters]);
+
   const activeFilters = [filters.tag, filters.dateFrom, filters.dateTo].filter(
     Boolean
   ).length;
@@ -826,6 +970,14 @@ export default function DiaryApp() {
     preview,
     setPreview,
     displayed,
+    dark,
+    diaryTheme,
+    setDarkMode,
+    setThemeStyle,
+    returnToBlog,
+    zenMode,
+    setZenMode,
+    openPalette: () => setPaletteOpen(true),
     logout,
     navigate,
     goBack,
@@ -858,64 +1010,63 @@ export default function DiaryApp() {
         .catch(() => setError("复制失败，请手动复制正文")),
     timestamp,
   };
-  const useDarkWA = dark || (!!session && diaryTheme === "terminal");
+
+  const useDarkWA = dark || diaryTheme === "terminal";
+  const appClasses = [
+    "diary-app",
+    `diary-theme-${diaryTheme}`,
+    useDarkWA ? "wa-dark" : "wa-light",
+    !session ? "diary-unauth" : "",
+    zenMode ? "diary-zen" : "",
+    locking ? "diary-locking" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div
-      class={`diary-app ${
-        session ? `diary-theme-${diaryTheme} ` : ""
-      }${useDarkWA ? "wa-dark" : "wa-light"}`}
-      lang="zh-CN"
-    >
-      {!session && (
-        <>
-          <div class="diary-heading">
-            <div>
-              <p class="diary-eyebrow">PRIVATE JOURNAL</p>
-              <h1>私人日记</h1>
-              <p class="diary-muted">记录日常，留给自己。</p>
-            </div>
-          </div>
-          {error && <Callout class="diary-error">{error}</Callout>}
-        </>
-      )}
-      {checking ? (
-        <Loading>正在检查登录状态…</Loading>
-      ) : !session ? (
-        <form class="diary-login diary-panel" onSubmit={login}>
-          <h2>登录日记</h2>
-          <p class="diary-muted">输入账号和密码，查看私密记录。</p>
-          <Input
-            label="账号"
-            name="username"
-            autoComplete="username"
-            required
-            maxLength={256}
-            disabled={busy}
-          />
-          <Input
-            label="密码"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            maxLength={1024}
-            disabled={busy}
-          />
-          <Button
-            class="diary-primary"
-            type="submit"
-            disabled={busy}
-            loading={busy}
-          >
-            {busy ? "登录中…" : "登录"}
-          </Button>
-        </form>
+    <div class={appClasses} lang="zh-CN">
+      {checking || !session ? (
+        <DiaryFoyer
+          checking={checking}
+          busy={busy}
+          error={error}
+          dark={dark}
+          diaryTheme={diaryTheme}
+          onSetDark={setDarkMode}
+          onSetTheme={setThemeStyle}
+          onLogin={login}
+          onReturnBlog={returnToBlog}
+        />
       ) : (
         <>
           {diaryTheme === "journal" && <JournalView p={viewProps} />}
           {diaryTheme === "terminal" && <TerminalView p={viewProps} />}
           {diaryTheme === "magazine" && <MagazineView p={viewProps} />}
         </>
+      )}
+      {arrivedViaFirefly && (
+        <FireflyArrivalOverlay onDone={() => setArrivedViaFirefly(false)} />
+      )}
+      {session && paletteOpen && (
+        <DiaryCommandPalette
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          routeView={route.view}
+          zenMode={zenMode}
+          dark={dark}
+          diaryTheme={diaryTheme}
+          items={items}
+          onNew={() =>
+            navigate(`/diary/?view=new&id=${crypto.randomUUID()}`)
+          }
+          onFocusSearch={focusSearch}
+          onToggleZen={() => setZenMode((v) => !v)}
+          onSetTheme={(t) => setThemeStyle(t)}
+          onSetDark={(d) => setDarkMode(d)}
+          onLock={() => void logout()}
+          onReturnBlog={returnToBlog}
+          onOpenEntry={(id) => navigate(`/diary/?view=read&id=${id}`)}
+        />
       )}
       {session && deleteTarget && (
         <Dialog

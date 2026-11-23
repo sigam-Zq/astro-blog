@@ -1,7 +1,5 @@
 ---
 import BaseHead from '../../components/BaseHead.astro';
-import Header from '../../components/Header.astro';
-import Footer from '../../components/Footer.astro';
 import DiaryApp from '../../components/diary/DiaryApp';
 import themeCSS from '@awesome.me/webawesome/dist/styles/themes/default.css?inline';
 import '@awesome.me/webawesome/dist/styles/utilities/scroll-lock.css';
@@ -9,54 +7,65 @@ import { scopeDiaryTheme } from '../../components/diary/theme';
 const diaryTheme = scopeDiaryTheme(themeCSS);
 ---
 <!doctype html>
-<html lang="zh-CN">
- <head>
-  <BaseHead title="私人日记" description="私人日记" />
-  <meta name="robots" content="noindex, nofollow, noarchive" />
-  <meta name="referrer" content="no-referrer" />
-  <style is:inline set:html={diaryTheme} />
- </head>
- <body>
-  <div class="diary-site-header"><Header showDiaryThemes={true} /></div>
-  <main id="main-content" class="diary-main"><DiaryApp client:only="preact"><p slot="fallback">正在加载日记…</p></DiaryApp></main>
-  <Footer />
- </body>
+<html lang="zh-CN" class="diary-page">
+	<head>
+		<BaseHead title="私人日记" description="私人日记" />
+		<meta name="robots" content="noindex, nofollow, noarchive" />
+		<meta name="referrer" content="no-referrer" />
+		<script is:inline>
+			(function() {
+				var valid = ['journal', 'terminal', 'magazine'];
+				var theme = 'light';
+				var diaryTheme = 'journal';
+				try {
+					var savedTheme = localStorage.getItem('theme');
+					if (savedTheme === 'light' || savedTheme === 'dark') {
+						theme = savedTheme;
+					} else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+						theme = 'dark';
+					}
+					var savedDiaryTheme = localStorage.getItem('diary-theme');
+					if (savedDiaryTheme && valid.indexOf(savedDiaryTheme) !== -1) {
+						diaryTheme = savedDiaryTheme;
+					}
+				} catch (e) {}
+				document.documentElement.dataset.theme = theme;
+				document.documentElement.dataset.diaryTheme = diaryTheme;
+			})();
+		</script>
+		<style is:inline set:html={diaryTheme} />
+	</head>
+	<body class="diary-body">
+		<main id="main-content" class="diary-main">
+			<DiaryApp client:only="preact">
+				<div slot="fallback" class="diary-boot-fallback">正在打开私人日记…</div>
+			</DiaryApp>
+		</main>
+	</body>
 </html>
 <style>
- .diary-main {
-  width: 100%;
-  max-width: none;
-  padding: 0;
- }
- @media (max-width: 720px) {
-  .diary-site-header :global(nav) {
-   display: grid;
-   grid-template-columns: minmax(0, 1fr) auto;
-   gap: 0.25rem 1rem;
-   padding-top: 0.5rem;
-  }
-  .diary-site-header :global(nav h2) {
-   white-space: nowrap;
-  }
-  .diary-site-header :global(.right-links) {
-   grid-column: 2;
-   grid-row: 1;
-   gap: 0.5rem;
-  }
-  .diary-site-header :global(.internal-links) {
-   grid-column: 1 / -1;
-   display: flex;
-  }
-  .diary-site-header :global(.internal-links a) {
-   flex: 1;
-   text-align: center;
-   padding: 0.5rem;
-  }
-  .diary-site-header :global(.theme-toggle),
-  .diary-site-header :global(.search-icon-link) {
-   min-width: 44px;
-   min-height: 44px;
-   justify-content: center;
-  }
- }
+	html.diary-page,
+	body.diary-body {
+		margin: 0;
+		padding: 0;
+		min-height: 100dvh;
+		overflow-x: clip;
+	}
+	.diary-main {
+		width: 100%;
+		max-width: none;
+		margin: 0;
+		padding: 0;
+		min-height: 100dvh;
+	}
+	.diary-boot-fallback {
+		min-height: 100dvh;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--bg-primary);
+		color: var(--text-muted);
+		font-size: 0.95rem;
+		letter-spacing: 0.08em;
+	}
 </style>
