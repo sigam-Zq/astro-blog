@@ -1,0 +1,52 @@
+# 远端服务器部署：拉取阿里云镜像仓库的已发布镜像运行。
+# 用法（在服务器上，与本文件同目录放置 config.yaml 和 runtime.env）：
+#   podman login registry.cn-zhangjiakou.aliyuncs.com
+#   podman compose -f docker-compose.prod.yaml pull
+#   podman compose -f docker-compose.prod.yaml up -d
+# 指定版本号（默认 latest）：
+#   IMAGE_TAG=1.0.0 podman compose -f docker-compose.prod.yaml up -d
+name: private-diary
+services:
+  diary:
+    image: registry.cn-zhangjiakou.aliyuncs.com/pub_zq/private_service:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    command: ["--config", "/app/config.yaml"]
+    # Compose >= 2.30 supports raw env_file values, preserving $ in Argon2 hashes.
+    env_file:
+      - path: ${DIARY_ENV_FILE:-runtime.env}
+        required: false
+        format: raw
+    volumes:
+      - type: bind
+        source: ./config.yaml
+        target: /app/config.yaml
+        read_only: true
+        bind:
+          create_host_path: false
+    # 不用 init:true：Go 程序自带信号处理，避免 docker-init 在受限环境下的 exec 权限问题
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 120s
+    ports:
+      - "127.0.0.1:8080:8080" # 仅本机回环，交给反向代理（Caddy/Nginx）对外
+    networks: [diary, rustfs]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/usr/local/bin/diary",
+          "--probe",
+          "http://127.0.0.1:8080/healthz",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+networks:
+  diary: {}
+  rustfs:
+    # 加入 rustfs 那套 compose 项目已创建的网络，实现容器间内网互通
+    external: true
+    name: rustfs_default
