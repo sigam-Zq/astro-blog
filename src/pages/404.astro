@@ -1,0 +1,70 @@
+---
+import BaseHead from '../components/BaseHead.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog'))
+	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+	.slice(0, 3);
+---
+
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<BaseHead title="404 · 页面走丢了" description="页面不存在" />
+	</head>
+	<body class="min-h-screen flex flex-col" style="background-color: var(--bg-primary);">
+		<Header />
+		<main id="main-content" class="flex-1">
+			<section class="nf">
+				<p class="nf-code" aria-hidden="true">404</p>
+				<h1>这一页走丢了</h1>
+				<p class="nf-sub">链接可能已失效，或者它从来就不存在。不如看看最近写了什么：</p>
+				<ul class="nf-list">
+					{posts.map((post) => (
+						<li>
+							<a href={`/blog/${post.id}/`}>
+								<time>{post.data.pubDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })}</time>
+								<span>{post.data.title}</span>
+							</a>
+						</li>
+					))}
+				</ul>
+				<a href="/" class="nf-home">← 回到首页</a>
+			</section>
+		</main>
+		<Footer />
+	</body>
+</html>
+
+<style>
+	.nf { max-width: 640px; margin: 0 auto; padding: 4rem 1.25rem 3rem; text-align: center; }
+	.nf-code {
+		margin: 0;
+		font: 800 clamp(6rem, 28vw, 11rem) / 1 var(--font-display);
+		color: transparent;
+		-webkit-text-stroke: 2px var(--accent);
+		animation: float 4s ease-in-out infinite;
+	}
+	h1 { font-size: clamp(1.6rem, 6vw, 2.2rem); margin: 0.5rem 0 0.75rem; }
+	.nf-sub { color: var(--text-secondary); margin-bottom: 2rem; }
+	.nf-list { list-style: none; margin: 0 0 2rem; padding: 0; text-align: left; display: grid; gap: 0.6rem; }
+	.nf-list a {
+		display: flex; flex-direction: column; gap: 0.15rem; padding: 0.9rem 1.1rem;
+		border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-tertiary);
+		text-decoration: none; color: var(--text-primary);
+		transition: border-color 0.2s ease, transform 0.2s ease;
+	}
+	.nf-list a:active { transform: scale(0.98); }
+	.nf-list time { font-size: 0.78rem; color: var(--accent); font-weight: 600; }
+	.nf-list span { font-family: var(--font-display); font-weight: 700; }
+	@media (hover: hover) { .nf-list a:hover { border-color: var(--accent); transform: translateX(4px); } }
+	.nf-home {
+		display: inline-flex; align-items: center; min-height: 48px; padding: 0 1.5rem; border-radius: 999px;
+		background: var(--text-primary); color: var(--bg-primary); text-decoration: none; font-weight: 600;
+	}
+	.nf-home:hover { color: var(--bg-primary); }
+	@keyframes float { 50% { transform: translateY(-10px); } }
+	@media (prefers-reduced-motion: reduce) { .nf-code { animation: none; } }
+</style>

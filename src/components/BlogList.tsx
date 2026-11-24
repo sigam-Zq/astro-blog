@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'preact/hooks';
+import { useState, useEffect, useMemo, useRef } from 'preact/hooks';
 import Fuse from 'fuse.js';
 
 interface Post {
@@ -22,6 +22,7 @@ export default function BlogList({ posts, postsPerPage = 10 }: Props) {
 	const [currentPage, setCurrentPage] = useState(1);
 	const [selectedTags, setSelectedTags] = useState<string[]>([]);
 	const [searchQuery, setSearchQuery] = useState('');
+	const inputRef = useRef<HTMLInputElement>(null);
 
 	// Initialize from URL
 	useEffect(() => {
@@ -32,6 +33,24 @@ export default function BlogList({ posts, postsPerPage = 10 }: Props) {
 		setSelectedTags(tags);
 		setCurrentPage(page);
 		setSearchQuery(q);
+	}, []);
+
+	// Focus search via ?focus=search, "/" or Cmd/Ctrl+K
+	useEffect(() => {
+		if (new URLSearchParams(window.location.search).get('focus') === 'search') {
+			inputRef.current?.focus();
+		}
+		const onKey = (e: KeyboardEvent) => {
+			const el = e.target as HTMLElement;
+			const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+			if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing)) {
+				e.preventDefault();
+				inputRef.current?.focus();
+				inputRef.current?.select();
+			}
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
 	}, []);
 
 	// Update URL when state changes
@@ -47,7 +66,7 @@ export default function BlogList({ posts, postsPerPage = 10 }: Props) {
 			params.set('q', searchQuery);
 		}
 		const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
-		history.pushState({}, '', newUrl);
+		history.replaceState({}, '', newUrl);
 	}, [selectedTags, currentPage, searchQuery]);
 
 	// Get all unique tags
@@ -112,301 +131,234 @@ export default function BlogList({ posts, postsPerPage = 10 }: Props) {
 		window.scrollTo({ top: 0, behavior: 'smooth' });
 	};
 
+	// Group current page by year
+	const groups = useMemo(() => {
+		const map: { year: number; items: Post[] }[] = [];
+		paginatedPosts.forEach(post => {
+			const year = post.data.pubDate.getFullYear();
+			const last = map[map.length - 1];
+			if (last && last.year === year) last.items.push(post);
+			else map.push({ year, items: [post] });
+		});
+		return map;
+	}, [paginatedPosts]);
+
+	const highlight = (text: string) => {
+		const q = searchQuery.trim();
+		if (!q) return text;
+		const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		const parts = text.split(new RegExp(`(${escaped})`, 'ig'));
+		return parts.map((part, i) =>
+			i % 2 === 1 ? <mark key={i}>{part}</mark> : part
+		);
+	};
+
 	return (
-		<div class="blog-list">
-			{/* Search Input */}
-			<div class="search-container mb-6">
+		<div class="bl">
+			{/* Search */}
+			<div class="bl-search">
+				<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+					<circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+				</svg>
 				<input
+					ref={inputRef}
 					type="search"
-					placeholder="搜索文章标题或内容..."
+					placeholder="搜索文章标题或内容…"
+					aria-label="搜索文章"
 					value={searchQuery}
 					onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
-					class="search-input w-full px-4 py-2 rounded-lg border"
-					style={{
-						backgroundColor: 'var(--bg-secondary)',
-						color: 'var(--text-primary)',
-						borderColor: 'var(--border-color)'
-					}}
 				/>
+				<kbd aria-hidden="true">/</kbd>
 			</div>
 
-			{/* Tags Filter Bar */}
-			<div class="tags-filter-bar" style={{
-				display: 'flex',
-				alignItems: 'center',
-				gap: '1rem',
-				padding: '1rem 0',
-				marginBottom: '1.5rem',
-				flexWrap: 'wrap'
-			}}>
-				<span class="tags-label" style={{
-					fontSize: '0.875rem',
-					color: 'var(--text-muted)',
-					fontWeight: 500,
-					whiteSpace: 'nowrap'
-				}}>标签</span>
-				<div class="tags-list" style={{
-					display: 'flex',
-					flexWrap: 'wrap',
-					gap: '0.5rem',
-					flex: 1
-				}}>
-					{allTags.map(tag => (
-						<span
-							key={tag}
-							onClick={() => toggleTag(tag)}
-							style={{
-								display: 'inline-flex',
-								alignItems: 'center',
-								gap: '0.25rem',
-								padding: '0.375rem 0.75rem',
-								background: selectedTags.includes(tag) ? 'var(--accent)' : 'var(--bg-tertiary)',
-								borderRadius: '9999px',
-								fontSize: '0.875rem',
-								color: selectedTags.includes(tag) ? 'white' : 'var(--text-secondary)',
-								cursor: 'pointer',
-								border: '1px solid transparent',
-								transition: 'all 0.15s ease',
-								transform: selectedTags.includes(tag) ? 'scale(1.05)' : 'scale(1)'
-							}}
-						>
-							{tag}
-							{selectedTags.includes(tag) && (
-								<span
-									onClick={(e) => { e.stopPropagation(); toggleTag(tag); }}
-									style={{ fontSize: '0.625rem', marginLeft: '0.25rem', opacity: 0.7 }}
-								>
-									✕
-								</span>
-							)}
-						</span>
+			{/* Tags: single scrolling row on phones */}
+			<div class="bl-tags" role="group" aria-label="按标签筛选">
+				{selectedTags.length > 0 && (
+					<button class="bl-chip bl-clear" onClick={clearTags}>✕ 清除</button>
+				)}
+				{allTags.map(tag => (
+					<button
+						key={tag}
+						type="button"
+						class={`bl-chip${selectedTags.includes(tag) ? ' on' : ''}`}
+						aria-pressed={selectedTags.includes(tag)}
+						onClick={() => toggleTag(tag)}
+					>
+						<span class="hash">#</span>{tag}
+					</button>
+				))}
+			</div>
+
+			<p class="bl-count" aria-live="polite">
+				共 <b>{filteredPosts.length}</b> 篇
+				{searchQuery && <span>，关键词「{searchQuery}」</span>}
+			</p>
+
+			{filteredPosts.length === 0 ? (
+				<div class="bl-empty">
+					<div class="face">¯\_(ツ)_/¯</div>
+					<p>没有找到相关文章，换个关键词或标签试试</p>
+					{(searchQuery || selectedTags.length > 0) && (
+						<button class="bl-chip on" onClick={() => { setSearchQuery(''); clearTags(); }}>重置筛选</button>
+					)}
+				</div>
+			) : (
+				<div class="bl-timeline" id="postsList">
+					{groups.map(group => (
+						<section key={group.year} class="bl-year">
+							<h3 class="bl-year-title">
+								<span>{group.year}</span>
+								<small>{group.items.length} 篇</small>
+							</h3>
+							<ul>
+								{group.items.map(post => (
+									<li key={post.id} data-tags={post.data.tags?.join(',') || ''}>
+										<a href={`/blog/${post.id}/`} class="bl-card">
+											<div class="bl-main">
+												<time dateTime={post.data.pubDate.toISOString()}>
+													{post.data.pubDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+												</time>
+												<h4>{highlight(post.data.title)}</h4>
+												{post.data.description && <p class="bl-desc">{highlight(post.data.description)}</p>}
+												{post.data.tags && post.data.tags.length > 0 && (
+													<div class="bl-post-tags">
+														{post.data.tags.map(tag => <span key={tag}>#{tag}</span>)}
+													</div>
+												)}
+											</div>
+											<img
+												src={post.data.heroImage || '/cat-1.svg'}
+												alt=""
+												width={240}
+												height={135}
+												loading="lazy"
+											/>
+										</a>
+									</li>
+								))}
+							</ul>
+						</section>
 					))}
 				</div>
-				{selectedTags.length > 0 && (
-					<button
-						onClick={clearTags}
-						style={{
-							display: 'inline-flex',
-							alignItems: 'center',
-							gap: '0.25rem',
-							padding: '0.375rem 0.75rem',
-							background: 'transparent',
-							border: '1px solid var(--border-color)',
-							borderRadius: '9999px',
-							fontSize: '0.75rem',
-							color: 'var(--text-muted)',
-							cursor: 'pointer',
-							transition: 'all 0.15s ease',
-							whiteSpace: 'nowrap'
-						}}
-					>
-						✕ 清除全部
-					</button>
-				)}
-			</div>
+			)}
 
-			{/* Results count */}
-			<div class="results-info mb-4" style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-				找到 {filteredPosts.length} 篇文章
-				{searchQuery && <span>，搜索关键词: "{searchQuery}"</span>}
-			</div>
-
-			{/* Posts List */}
-			<ul id="postsList" style={{
-				display: 'flex',
-				flexDirection: 'column',
-				gap: '2rem',
-				listStyleType: 'none',
-				margin: 0,
-				padding: 0
-			}}>
-				{paginatedPosts.map((post, index) => (
-					<li
-						key={post.id}
-						data-tags={post.data.tags?.join(',') || ''}
-						style={{
-							opacity: 0,
-							animation: `fadeInUp 0.5s ease forwards`,
-							animationDelay: `${index * 0.05}s`
-						}}
-					>
-						<a
-							href={`/blog/${post.id}/`}
-							style={{
-								display: 'flex',
-								justifyContent: 'space-between',
-								alignItems: 'center',
-								gap: '2rem',
-								padding: '1rem',
-								borderRadius: '12px',
-								background: 'transparent',
-								textDecoration: 'none',
-								transition: 'all 0.2s ease'
-							}}
-							onMouseEnter={(e) => {
-								(e.currentTarget as HTMLElement).style.background = 'var(--bg-secondary)';
-								(e.currentTarget as HTMLElement).style.transform = 'translateX(4px)';
-							}}
-							onMouseLeave={(e) => {
-								(e.currentTarget as HTMLElement).style.background = 'transparent';
-								(e.currentTarget as HTMLElement).style.transform = 'translateX(0)';
-							}}
-						>
-							<div class="content-left" style={{ flex: 1 }}>
-								<h4 class="title" style={{
-									margin: '0 0 0.25rem 0',
-									color: 'var(--text-primary)',
-									lineHeight: 1.2,
-									fontSize: '1.75rem',
-									fontWeight: 600
-								}}>
-									{post.data.title}
-								</h4>
-								<p class="date" style={{ margin: 0, color: 'var(--text-muted)' }}>
-									{post.data.pubDate.toLocaleDateString('zh-CN', {
-										year: 'numeric',
-										month: 'short',
-										day: 'numeric'
-									})}
-								</p>
-								{post.data.tags && post.data.tags.length > 0 && (
-									<div class="post-tags" style={{
-										display: 'flex',
-										gap: '0.5rem',
-										marginTop: '0.5rem',
-										flexWrap: 'wrap'
-									}}>
-										{post.data.tags.map(tag => (
-											<span key={tag} style={{
-												fontSize: '0.75rem',
-												padding: '0.125rem 0.5rem',
-												background: 'var(--bg-tertiary)',
-												borderRadius: '9999px',
-												color: 'var(--text-secondary)',
-												transition: 'all 0.15s ease'
-											}}>
-												{tag}
-											</span>
-										))}
-									</div>
-								)}
-							</div>
-							{post.data.heroImage ? (
-								<img
-									src={post.data.heroImage}
-									alt=""
-									width={240}
-									height={135}
-									loading="lazy"
-									style={{
-										width: '240px',
-										height: '135px',
-										objectFit: 'cover',
-										borderRadius: '12px',
-										marginBottom: 0,
-										transition: 'transform 0.3s ease, box-shadow 0.3s ease'
-									}}
-								/>
-							) : (
-								<img
-									src="/cat-1.svg"
-									alt=""
-									width={240}
-									height={135}
-									loading="lazy"
-									style={{
-										width: '240px',
-										height: '135px',
-										objectFit: 'cover',
-										borderRadius: '12px',
-										marginBottom: 0,
-										transition: 'transform 0.3s ease, box-shadow 0.3s ease'
-									}}
-								/>
-							)}
-						</a>
-					</li>
-				))}
-			</ul>
-
-			{/* Pagination */}
 			{totalPages > 1 && (
-				<div class="pagination" style={{
-					display: 'flex',
-					justifyContent: 'center',
-					gap: '0.5rem',
-					marginTop: '2rem',
-					paddingTop: '1rem'
-				}}>
-					<button
-						onClick={() => goToPage(currentPage - 1)}
-						disabled={currentPage === 1}
-						style={{
-							padding: '0.5rem 1rem',
-							background: currentPage === 1 ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
-							border: '1px solid var(--border-color)',
-							borderRadius: '8px',
-							color: currentPage === 1 ? 'var(--text-muted)' : 'var(--text-primary)',
-							cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-							transition: 'all 0.2s ease',
-							opacity: currentPage === 1 ? 0.5 : 1
-						}}
-					>
-						上一页
-					</button>
-					<span style={{
-						display: 'flex',
-						alignItems: 'center',
-						padding: '0 1rem',
-						color: 'var(--text-secondary)'
-					}}>
-						{currentPage} / {totalPages}
-					</span>
-					<button
-						onClick={() => goToPage(currentPage + 1)}
-						disabled={currentPage === totalPages}
-						style={{
-							padding: '0.5rem 1rem',
-							background: currentPage === totalPages ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
-							border: '1px solid var(--border-color)',
-							borderRadius: '8px',
-							color: currentPage === totalPages ? 'var(--text-muted)' : 'var(--text-primary)',
-							cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-							transition: 'all 0.2s ease',
-							opacity: currentPage === totalPages ? 0.5 : 1
-						}}
-					>
-						下一页
-					</button>
+				<div class="bl-pager">
+					<button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>← 上一页</button>
+					<span>{currentPage} / {totalPages}</span>
+					<button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>下一页 →</button>
 				</div>
 			)}
 
 			<style>{`
-				@keyframes fadeInUp {
-					from {
-						opacity: 0;
-						transform: translateY(20px);
-					}
-					to {
-						opacity: 1;
-						transform: translateY(0);
-					}
+				.bl-search { position: relative; display: flex; align-items: center; margin-bottom: 1rem; }
+				.bl-search svg { position: absolute; left: 1rem; color: var(--text-muted); pointer-events: none; }
+				.bl-search input {
+					width: 100%; min-height: 52px; padding: 0 3rem 0 3rem; font-size: 16px;
+					color: var(--text-primary); background: var(--bg-tertiary);
+					border: 1px solid var(--border-color); border-radius: 16px;
+					transition: border-color .2s ease, box-shadow .2s ease; outline: none;
+				}
+				.bl-search input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+				.bl-search kbd {
+					position: absolute; right: 1rem; padding: 2px 8px; font: 600 12px/1.4 ui-monospace, monospace;
+					color: var(--text-muted); border: 1px solid var(--border-color); border-bottom-width: 2px; border-radius: 6px;
+				}
+				.bl-search input:not(:placeholder-shown) ~ kbd { display: none; }
+				@media (hover: none) { .bl-search kbd { display: none; } }
+
+				.bl-tags {
+					display: flex; gap: .5rem; padding: .25rem 0 .75rem;
+					overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity;
+					-webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
+					mask-image: linear-gradient(90deg, #000 88%, transparent);
+				}
+				.bl-tags::-webkit-scrollbar { display: none; }
+				@media (min-width: 721px) {
+					.bl-tags { flex-wrap: wrap; overflow: visible; -webkit-mask-image: none; mask-image: none; }
+				}
+				.bl-chip {
+					flex: none; scroll-snap-align: start; min-height: 36px; padding: 0 .9rem; font: 500 .85rem/1 var(--font-body);
+					color: var(--text-secondary); background: var(--bg-tertiary); border: 1px solid var(--border-color);
+					border-radius: 999px; cursor: pointer; white-space: nowrap;
+					transition: color .15s ease, background-color .15s ease, border-color .15s ease, transform .15s ease;
+				}
+				.bl-chip .hash { color: var(--accent); margin-right: 1px; }
+				.bl-chip:active { transform: scale(.95); }
+				.bl-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+				.bl-chip.on .hash { color: inherit; }
+				.bl-clear { color: var(--text-muted); background: transparent; }
+				@media (hover: hover) { .bl-chip:not(.on):hover { border-color: var(--accent); color: var(--accent); } }
+
+				.bl-count { margin: .5rem 0 1.5rem; font-size: .85rem; color: var(--text-muted); }
+				.bl-count b { color: var(--text-primary); }
+
+				.bl-year { position: relative; margin-bottom: 2.5rem; }
+				.bl-year-title {
+					position: sticky; top: 60px; z-index: 5; display: flex; align-items: baseline; gap: .75rem;
+					margin: 0 0 1rem; padding: .4rem 0;
+					background: color-mix(in srgb, var(--bg-primary) 85%, transparent);
+					-webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+				}
+				.bl-year-title span {
+					font: 800 clamp(2rem, 8vw, 3rem)/1 var(--font-display);
+					color: transparent; -webkit-text-stroke: 1.5px var(--accent);
+				}
+				.bl-year-title small { font: 500 .8rem var(--font-body); color: var(--text-muted); }
+				.bl-year ul { list-style: none; margin: 0; padding: 0 0 0 1.4rem; border-left: 2px solid var(--border-color); }
+				.bl-year li { position: relative; margin-bottom: 1rem; opacity: 0; animation: fadeInUp .5s ease forwards; }
+				.bl-year li::before {
+					content: ''; position: absolute; left: calc(-1.4rem - 6px); top: 1.5rem; width: 10px; height: 10px;
+					border-radius: 50%; background: var(--bg-primary); border: 2px solid var(--accent);
+					transition: background-color .2s ease, transform .2s ease;
+				}
+				.bl-year li:hover::before { background: var(--accent); transform: scale(1.3); }
+
+				.bl-card {
+					display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; padding: 1rem 1.1rem;
+					border: 1px solid transparent; border-radius: 18px; text-decoration: none; color: inherit;
+					transition: background-color .2s ease, border-color .2s ease, transform .2s ease;
+				}
+				.bl-card:active { transform: scale(.985); }
+				@media (hover: hover) {
+					.bl-card:hover { background: var(--bg-secondary); border-color: var(--border-color); transform: translateX(4px); }
+					.bl-card:hover img { transform: scale(1.04); }
+				}
+				.bl-main { flex: 1; min-width: 0; }
+				.bl-main time { font: 600 .78rem var(--font-body); letter-spacing: .04em; color: var(--accent); }
+				.bl-main h4 {
+					margin: .25rem 0 .35rem; font: 700 clamp(1.15rem, 4.2vw, 1.5rem)/1.3 var(--font-display); color: var(--text-primary);
+				}
+				.bl-desc {
+					margin: 0; font-size: .92rem; line-height: 1.6; color: var(--text-secondary);
+					display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+				}
+				.bl-post-tags { display: flex; flex-wrap: wrap; gap: .25rem .75rem; margin-top: .6rem; font: 500 .78rem var(--font-body); color: var(--text-muted); }
+				.bl-card mark { background: linear-gradient(transparent 55%, var(--accent-soft) 55%); color: var(--accent); padding: 0 .1em; }
+				.bl-card img {
+					flex: none; width: 200px; height: 112px; margin: 0; object-fit: cover; border-radius: 12px;
+					transition: transform .4s ease;
 				}
 				@media (max-width: 720px) {
-					#postsList li a {
-						flex-direction: column;
-						align-items: flex-start;
-						gap: 1rem;
-					}
-					#postsList li img {
-						width: 100%;
-						height: auto;
-					}
+					.bl-year ul { padding-left: 1rem; }
+					.bl-year li::before { left: calc(-1rem - 6px); }
+					.bl-card { flex-direction: column-reverse; align-items: stretch; gap: .8rem; padding: .8rem; }
+					.bl-card img { width: 100%; height: auto; aspect-ratio: 16 / 9; }
 				}
-				.search-input:focus {
-					outline: 2px solid var(--accent);
-					outline-offset: 2px;
+
+				.bl-empty { text-align: center; padding: 3rem 1rem; color: var(--text-secondary); }
+				.bl-empty .face { font: 700 2rem var(--font-display); color: var(--text-muted); margin-bottom: 1rem; }
+
+				.bl-pager { display: flex; justify-content: center; align-items: center; gap: .75rem; margin-top: 1.5rem; }
+				.bl-pager span { color: var(--text-secondary); font-size: .9rem; min-width: 4rem; text-align: center; }
+				.bl-pager button {
+					min-height: 44px; padding: 0 1.1rem; font: 600 .9rem var(--font-body); color: var(--text-primary);
+					background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 999px; cursor: pointer;
+					transition: border-color .2s ease, color .2s ease;
 				}
+				.bl-pager button:disabled { opacity: .4; cursor: not-allowed; }
+				@media (hover: hover) { .bl-pager button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); } }
+				@media (prefers-reduced-motion: reduce) { .bl-year li { animation: none; opacity: 1; } }
 			`}</style>
 		</div>
 	);

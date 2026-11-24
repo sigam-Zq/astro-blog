@@ -16,13 +16,13 @@ import { SITE_TITLE } from '../consts';
 			<HeaderLink href="/about">About</HeaderLink>
 		</div>
 		<div class="right-links">
-			<a href="/blog" class="search-icon-link" aria-label="搜索文章" title="搜索文章">
+			<a href="/blog?focus=search" class="search-icon-link" aria-label="搜索文章" title="搜索文章">
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
 					<circle cx="11" cy="11" r="8"></circle>
 					<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
 				</svg>
 			</a>
-			<button id="theme-toggle" class="theme-toggle" aria-label="切换主题">
+			<button class="theme-toggle js-theme-toggle" aria-label="切换主题">
 				<svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 					<circle cx="12" cy="12" r="5"></circle>
 					<line x1="12" y1="1" x2="12" y2="3"></line>
@@ -40,14 +40,9 @@ import { SITE_TITLE } from '../consts';
 				<span class="theme-text">切换主题</span>
 			</button>
 			<div class="social-links">
-				<a href="blog/resume/" target="_blank">
+				<a href="/blog/resume/" target="_blank">
 					<span class="sr-only">这里是小Z的一个自我介绍</span>
-					<svg viewBox="0 0 16 16" aria-hidden="true" width="32" height="32"
-						><path
-							fill="currentColor"
-							d="M11.19 12.195c2.016-.24 3.77-1.475 3.99-2.603.348-1.778.32-4.339.32-4.339 0-3.47-2.286-4.488-2.286-4.488C12.062.238 10.083.017 8.027 0h-.05C5.92.017 3.942.238 2.79.765c0 0-2.285 1.017-2.285 4.488l-.002.662c-.004.64-.007 1.35.011 2.091.083 3.394.626 6.74 3.78 7.57 1.454.383 2.703.463 3.709.408 1.823-.1 2.847-.647 2.847-.647l-.06-1.317s-1.303.41-2.767.36c-1.45-.05-2.98-.156-3.215-1.928a3.614 3.614 0 0 1-.033-.496s1.424.346 3.228.428c1.103.05 2.137-.064 3.188-.189zm1.613-2.47H11.13v-4.08c0-.859-.364-1.295-1.091-1.295-.804 0-1.207.517-1.207 1.541v2.233H7.168V5.89c0-1.024-.403-1.541-1.207-1.541-.727 0-1.091.436-1.091 1.296v4.079H3.197V5.522c0-.859.22-1.541.66-2.046.456-.505 1.052-.764 1.793-.764.856 0 1.504.328 1.933.983L8 4.39l.417-.695c.429-.655 1.077-.983 1.934-.983.74 0 1.336.259 1.791.764.442.505.661 1.187.661 2.046v4.203z"
-						></path></svg
-					>
+					<svg viewBox="0 0 24 24" aria-hidden="true" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg>
 				</a>
 				<!-- <a href="https://twitter.com/astrodotbuild" target="_blank">
 				<span class="sr-only">Follow Astro on Twitter</span>
@@ -59,7 +54,7 @@ import { SITE_TITLE } from '../consts';
 				>
 			</a> -->
 				<a href="https://github.com/sigam-Zq" target="_blank">
-					<span class="sr-only">Go to Astro's GitHub repo</span>
+					<span class="sr-only">GitHub</span>
 					<svg viewBox="0 0 16 16" aria-hidden="true" width="32" height="32"
 						><path
 							fill="currentColor"
@@ -72,31 +67,79 @@ import { SITE_TITLE } from '../consts';
 	</nav>
 </header>
 
+<nav class="tabbar" aria-label="主导航">
+	<a href="/" class="tab" data-path="/">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h5v-6h4v6h5V10"/></svg>
+		<span>首页</span>
+	</a>
+	<a href="/blog" class="tab" data-path="/blog">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4z"/><path d="M8 9h8M8 13h8"/></svg>
+		<span>文章</span>
+	</a>
+	<a href="/blog?focus=search" class="tab" data-path="/search" aria-label="搜索文章">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+		<span>搜索</span>
+	</a>
+	<a href="/about" class="tab" data-path="/about">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+		<span>关于</span>
+	</a>
+	<button type="button" class="tab js-theme-toggle" aria-label="切换主题">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+		<span>主题</span>
+	</button>
+</nav>
+
 <script is:inline>
 	(function() {
+		const root = document.documentElement;
 		const savedTheme = localStorage.getItem('theme');
 		const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		const theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
+		root.dataset.theme = savedTheme || (systemPrefersDark ? 'dark' : 'light');
 
-		document.documentElement.dataset.theme = theme;
+		// highlight current tab
+		const path = location.pathname.replace(/\/+$/, '') || '/';
+		document.querySelectorAll('.tabbar .tab[data-path]').forEach(function(el) {
+			const p = el.getAttribute('data-path');
+			if (p === '/search') return;
+			if (p === '/' ? path === '/' : path === p || path.indexOf(p + '/') === 0) {
+				el.classList.add('active');
+				el.setAttribute('aria-current', 'page');
+			}
+		});
 
-		const toggleBtn = document.getElementById('theme-toggle');
-		if (toggleBtn) {
-			toggleBtn.addEventListener('click', function() {
-				const current = document.documentElement.dataset.theme;
-				const next = current === 'dark' ? 'light' : 'dark';
-				document.documentElement.dataset.theme = next;
-				localStorage.setItem('theme', next);
-			});
+		function applyTheme() {
+			const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+			root.dataset.theme = next;
+			localStorage.setItem('theme', next);
 		}
+		document.querySelectorAll('.js-theme-toggle').forEach(function(btn) {
+			btn.addEventListener('click', function(e) {
+				const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+				if (!document.startViewTransition || reduce) { applyTheme(); return; }
+				const x = e.clientX || innerWidth / 2, y = e.clientY || innerHeight / 2;
+				const r = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+				const t = document.startViewTransition(applyTheme);
+				t.ready.then(function() {
+					root.animate(
+						{ clipPath: ['circle(0px at ' + x + 'px ' + y + 'px)', 'circle(' + r + 'px at ' + x + 'px ' + y + 'px)'] },
+						{ duration: 550, easing: 'ease-in-out', pseudoElement: '::view-transition-new(root)' }
+					);
+				});
+			});
+		});
 	})();
 </script>
 <style>
 	header {
 		margin: 0;
 		padding: 0 1em;
-		background: var(--bg-primary);
-		box-shadow: var(--shadow-sm);
+		position: sticky;
+		top: 0;
+		z-index: 50;
+		background: color-mix(in srgb, var(--bg-primary) 78%, transparent);
+		-webkit-backdrop-filter: blur(14px) saturate(1.4);
+		backdrop-filter: blur(14px) saturate(1.4);
 		border-bottom: 1px solid var(--border-color);
 		transition: background-color 0.3s ease, border-color 0.3s ease;
 	}
@@ -207,12 +250,57 @@ import { SITE_TITLE } from '../consts';
 	.search-icon-link:hover {
 		color: var(--text-primary);
 	}
+	h2 a { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
+	.tabbar { display: none; }
 	@media (max-width: 720px) {
-		.social-links {
+		.social-links,
+		.theme-text,
+		.internal-links,
+		.right-links .theme-toggle,
+		.search-icon-link {
 			display: none;
 		}
-		.theme-text {
-			display: none;
+		nav:not(.tabbar) a { padding: 0.9em 0; }
+		.tabbar {
+			display: flex;
+			position: fixed;
+			left: 12px;
+			right: 12px;
+			bottom: calc(12px + env(safe-area-inset-bottom));
+			z-index: 60;
+			justify-content: space-around;
+			padding: 6px;
+			border-radius: 24px;
+			background: color-mix(in srgb, var(--bg-primary) 75%, transparent);
+			-webkit-backdrop-filter: blur(16px) saturate(1.5);
+			backdrop-filter: blur(16px) saturate(1.5);
+			border: 1px solid var(--border-color);
+			box-shadow: 0 10px 30px rgb(0 0 0 / 0.14);
 		}
+		.tabbar .tab {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 2px;
+			min-height: 48px;
+			padding: 6px 0;
+			border: 0;
+			border-radius: 18px;
+			background: transparent;
+			color: var(--text-secondary);
+			font: inherit;
+			font-size: 11px;
+			line-height: 1.2;
+			cursor: pointer;
+			text-decoration: none;
+			-webkit-tap-highlight-color: transparent;
+			transition: color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+		}
+		.tabbar .tab::after { display: none; }
+		.tabbar .tab svg { width: 22px; height: 22px; }
+		.tabbar .tab:active { transform: scale(0.92); }
+		.tabbar .tab.active { color: var(--accent); background: var(--accent-soft); }
 	}
 </style>

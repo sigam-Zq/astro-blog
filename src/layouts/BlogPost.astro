@@ -35,6 +35,7 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 			.prose {
 				--tw-prose-bold: var(--text-primary);
 				--tw-prose-headings: var(--text-primary);
+				--tw-prose-code: var(--code-inline-text);
 				color: var(--text-primary);
 				max-width: 720px;
 			}
@@ -53,16 +54,6 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 			}
 			.prose :global(a:hover) {
 				color: var(--accent-dark);
-			}
-			.prose :global(pre) {
-				max-width: 900px;
-				margin-left: -90px;
-			}
-			@media (max-width: 900px) {
-				.prose :global(pre) {
-					margin-left: 0;
-					max-width: 100%;
-				}
 			}
 			.prose :global(p) {
 				color: var(--text-primary);
@@ -83,6 +74,24 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 				background: var(--bg-primary);
 				border-color: var(--border-color);
 			}
+			.post-nav-card {
+				position: relative;
+				overflow: hidden;
+				border-radius: 18px;
+			}
+			.post-nav-card::after {
+				content: attr(data-ch);
+				position: absolute;
+				right: 0.6rem;
+				bottom: -1.2rem;
+				font: 800 5.5rem/1 var(--font-display);
+				color: var(--accent);
+				opacity: 0.09;
+				pointer-events: none;
+				transition: opacity 0.3s ease, transform 0.3s ease;
+			}
+			.post-nav-card:not(.post-nav-card-next)::after { right: auto; left: 0.6rem; }
+			.post-nav-card:hover::after { opacity: 0.2; transform: scale(1.08); }
 			.post-nav-card:hover {
 				background-color: var(--bg-secondary);
 				transform: translateX(4px);
@@ -197,6 +206,7 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 							<a
 								href={`/blog/${prevPost.id}/`}
 								class="post-nav-card flex-1 p-5 rounded-xl border text-left group"
+								data-ch={prevPost.data.title.trim().charAt(0)}
 							>
 								<span class="nav-label text-xs mb-1 block">
 									← 上一篇
@@ -213,6 +223,7 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 							<a
 								href={`/blog/${nextPost.id}/`}
 								class="post-nav-card post-nav-card-next flex-1 p-5 rounded-xl border text-right group"
+								data-ch={nextPost.data.title.trim().charAt(0)}
 							>
 								<span class="nav-label text-xs mb-1 block">
 									下一篇 →
@@ -268,6 +279,128 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 
 				window.addEventListener('scroll', updateProgress, { passive: true });
 				updateProgress();
+			})();
+		</script>
+
+		<script is:inline>
+			(function() {
+				var prose = document.querySelector('.prose');
+				if (!prose) return;
+
+				/* ---- code blocks: language label + copy ---- */
+				prose.querySelectorAll('pre').forEach(function(pre) {
+					var code = pre.querySelector('code');
+					var m = code && /language-([\w+-]+)/.exec(code.className);
+					var lang = pre.getAttribute('data-language') || (m && m[1]) || '';
+					if (lang === 'mermaid') return;
+					if (pre.parentElement && pre.parentElement.classList.contains('code-block')) return;
+
+					var wrap = document.createElement('div');
+					wrap.className = 'code-block';
+
+					var header = document.createElement('div');
+					header.className = 'code-block-header';
+
+					var langEl = document.createElement('span');
+					langEl.className = 'code-block-lang';
+					langEl.textContent = (lang && lang !== 'plaintext') ? lang : '';
+
+					var btn = document.createElement('button');
+					btn.type = 'button';
+					btn.className = 'copy-code';
+					btn.textContent = '复制';
+					btn.setAttribute('aria-label', '复制代码');
+					btn.addEventListener('click', function() {
+						var text = code ? code.textContent : pre.textContent;
+						navigator.clipboard.writeText(text || '').then(function() {
+							btn.textContent = '✓ 已复制';
+							btn.classList.add('done');
+						}, function() { btn.textContent = '复制失败'; });
+						setTimeout(function() { btn.textContent = '复制'; btn.classList.remove('done'); }, 1600);
+					});
+
+					header.appendChild(langEl);
+					header.appendChild(btn);
+					pre.parentNode.insertBefore(wrap, pre);
+					wrap.appendChild(header);
+					wrap.appendChild(pre);
+				});
+
+				/* ---- image lightbox ---- */
+				var dlg = document.createElement('dialog');
+				dlg.className = 'lightbox';
+				var big = document.createElement('img');
+				dlg.appendChild(big);
+				dlg.addEventListener('click', function() { dlg.close(); });
+				document.body.appendChild(dlg);
+				prose.querySelectorAll('img').forEach(function(img) {
+					if (img.closest('a')) return;
+					img.classList.add('zoomable');
+					img.addEventListener('click', function() {
+						big.src = img.currentSrc || img.src; big.alt = img.alt || '';
+						if (dlg.showModal) dlg.showModal();
+					});
+				});
+
+				/* ---- table of contents ---- */
+				var heads = Array.prototype.slice.call(prose.querySelectorAll('h2[id], h3[id]'));
+				if (heads.length < 3) return;
+
+				heads.forEach(function(h) {
+					var a = document.createElement('a');
+					a.href = '#' + h.id; a.className = 'anchor'; a.textContent = '#';
+					a.setAttribute('aria-label', '链接到本节');
+					h.appendChild(a);
+				});
+
+				function buildList() {
+					var ul = document.createElement('ul');
+					heads.forEach(function(h) {
+						var li = document.createElement('li');
+						li.className = h.tagName === 'H3' ? 'lv3' : 'lv2';
+						var a = document.createElement('a');
+						a.href = '#' + h.id;
+						a.setAttribute('data-id', h.id);
+						a.textContent = h.textContent.replace(/#$/, '');
+						li.appendChild(a); ul.appendChild(li);
+					});
+					return ul;
+				}
+
+				// desktop sidebar
+				var aside = document.createElement('aside');
+				aside.className = 'toc-side';
+				aside.setAttribute('aria-label', '目录');
+				var t = document.createElement('p'); t.className = 'toc-title'; t.textContent = '目录';
+				aside.appendChild(t); aside.appendChild(buildList());
+				document.body.appendChild(aside);
+
+				// mobile sheet
+				var fab = document.createElement('button');
+				fab.type = 'button'; fab.className = 'toc-fab'; fab.textContent = '目录';
+				var sheet = document.createElement('div');
+				sheet.className = 'toc-sheet'; sheet.hidden = true;
+				var panel = document.createElement('div'); panel.className = 'toc-panel';
+				var t2 = document.createElement('p'); t2.className = 'toc-title'; t2.textContent = '本文目录';
+				panel.appendChild(t2); panel.appendChild(buildList());
+				sheet.appendChild(panel);
+				function closeSheet() { sheet.hidden = true; document.body.classList.remove('toc-open'); }
+				fab.addEventListener('click', function() { sheet.hidden = false; document.body.classList.add('toc-open'); });
+				sheet.addEventListener('click', function(e) { if (e.target === sheet || e.target.tagName === 'A') closeSheet(); });
+				document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeSheet(); });
+				document.body.appendChild(fab); document.body.appendChild(sheet);
+
+				// scroll spy
+				var links = document.querySelectorAll('.toc-side a, .toc-panel a');
+				function setActive(id) {
+					links.forEach(function(l) { l.classList.toggle('active', l.getAttribute('data-id') === id); });
+				}
+				if ('IntersectionObserver' in window) {
+					var io = new IntersectionObserver(function(entries) {
+						entries.forEach(function(en) { if (en.isIntersecting) setActive(en.target.id); });
+					}, { rootMargin: '-80px 0px -70% 0px' });
+					heads.forEach(function(h) { io.observe(h); });
+				}
 			})();
 		</script>
 	</body>

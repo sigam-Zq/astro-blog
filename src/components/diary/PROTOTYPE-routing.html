@@ -1,0 +1,423 @@
+<!doctype html>
+<!-- PROTOTYPE — 一次性代码，不进入生产。用于验证 /diary/ 路由跳转逻辑。双击打开即可。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>原型：日记路由跳转逻辑</title>
+<style>
+  :root { --accent: #2f6fdf; --bad: #c0392b; --warn: #b7791f; --ok: #2f855a; --line: #e3e5ea; --muted: #6b7280; --bg: #f7f8fa; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: #1f2328; background: var(--bg); }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; color: #fff; background: var(--bad); padding: 1px 8px; border-radius: 3px; margin-bottom: 8px; }
+  .intro { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; margin: 12px 0 20px; }
+  .intro p { margin: 6px 0; }
+  .muted { color: var(--muted); }
+  section { margin-bottom: 20px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .col { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .col h3 { margin: 0 0 12px; font-size: 15px; display: flex; justify-content: space-between; }
+  .addr { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; word-break: break-all; }
+  .screen { font-size: 17px; font-weight: 600; padding: 14px 12px; margin: 10px 0; border-radius: 8px; background: #eef3fc; border-left: 4px solid var(--accent); }
+  .screen.bad { background: #fdecea; border-color: var(--bad); }
+  .screen.warn { background: #fdf6e3; border-color: var(--warn); }
+  .screen.out { background: #f0f1f3; border-color: #9aa0a6; }
+  .screen small { display: block; font-weight: 400; font-size: 12.5px; color: var(--muted); }
+  dl { display: grid; grid-template-columns: 110px 1fr; gap: 4px 10px; margin: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; }
+  .changed { background: #fff6c2; border-radius: 3px; padding: 0 4px; }
+  .stack { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  .chip.cur { border-color: var(--accent); background: var(--accent); color: #fff; }
+  .chip.fwd { opacity: .45; border-style: dashed; }
+  .msgs { margin: 10px 0 0; padding: 10px 12px 10px 28px; background: var(--bg); border-radius: 6px; font-size: 13px; min-height: 40px; }
+  .msgs li { margin: 2px 0; }
+  .btn-groups { display: grid; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .grp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .grp > span { width: 110px; color: var(--muted); font-size: 12.5px; }
+  button { font: inherit; font-size: 13px; padding: 5px 12px; border: 1px solid #c9ccd3; background: #fff; border-radius: 6px; cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover:not(:disabled) { color: #fff; filter: brightness(1.08); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+  .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; }
+  .tabs button.on { border-bottom-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .scenario { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; }
+  .steps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
+  .steps .done { text-decoration: line-through; opacity: .5; }
+  .expect { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 8px; font-size: 13px; }
+  .expect div { padding: 8px 10px; border-radius: 6px; background: var(--bg); }
+  .verdict { margin-top: 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="tag">PROTOTYPE · 用完即弃</span>
+  <h1>日记路由跳转：当前实现 vs 建议方案</h1>
+  <div class="intro">
+    <p><b>这个原型要回答的问题：</b>在 <code>/diary/</code> 里，浏览器的「后退 / 前进 / 刷新」和页面里的「← 返回」「保存后离开」「删除」等按钮组合起来用时，你会不会被带到意料之外的页面（来回跳、死链、空白新建页、意外离开）？建议方案修好了这些问题吗？还会带来新的别扭之处吗？</p>
+    <p class="muted">左右两栏同时接收同一组操作。左边忠实模拟当前 <code>DiaryApp.tsx</code> 的 <code>go / navigate / popstate</code> 逻辑，右边是建议方案。每次点击后，变化的字段会被高亮。日记数据只在内存里，刷新本页即可重置。</p>
+    <p class="muted">范围：只看路由跳转。登录/会话过期和网络失败不在这里；界面 UI 优化会单独做一个可切换多套方案的 UI 原型。</p>
+  </div>
+
+  <section>
+    <h2>引导场景（每个场景都会先重置到“打开日记列表”）</h2>
+    <div class="tabs" id="tabs"></div>
+    <div class="scenario" id="scenario"></div>
+  </section>
+
+  <section>
+    <h2>自由操作（随便点，按任意顺序）</h2>
+    <div class="btn-groups" id="buttons"></div>
+  </section>
+
+  <section>
+    <div class="cols" id="cols"></div>
+  </section>
+</div>
+
+<script>
+// =====================================================================
+// 纯逻辑模块（可迁移部分）：不碰 DOM。world = { hist, db, app, msgs }
+// hist 模拟浏览器历史栈；每个“方案”就是一组 (world, arg) => void 的操作，
+// 在 structuredClone 后的副本上修改，对外表现为纯函数 (world, action) => world。
+// =====================================================================
+const U = {
+  list(q = "", page = 1) { const p = new URLSearchParams(); if (q) p.set("q", q); if (page > 1) p.set("page", page); return "/diary/" + (p.size ? "?" + p : ""); },
+  read: (id) => `/diary/?view=read&id=${id}`,
+  edit: (id) => `/diary/?view=edit&id=${id}`,
+  new: (id) => (id ? `/diary/?view=new&id=${id}` : "/diary/?view=new"),
+};
+function parse(url) {
+  if (!url.startsWith("/diary/")) return { view: "external" };
+  const p = new URL(url, "http://x").searchParams;
+  const v = p.get("view") || "list";
+  return { view: ["list", "new", "read", "edit"].includes(v) ? v : "list", id: p.get("id") || "", q: p.get("q") || "", page: Number(p.get("page") || 1) };
+}
+const H = {
+  push: (h, e) => ({ entries: [...h.entries.slice(0, h.index + 1), e], index: h.index + 1 }),
+  replace: (h, e) => { const entries = h.entries.slice(); entries[h.index] = e; return { entries, index: h.index }; },
+  cur: (h) => h.entries[h.index],
+};
+const BLOG = { url: "/", st: null };
+function initialWorld() {
+  return {
+    hist: { entries: [BLOG, { url: "/diary/", st: { idx: 1, prev: "/" } }], index: 1 },
+    db: { a: { title: "周末去海边", rev: 1 }, b: { title: "读完一本书", rev: 1 } },
+    app: { url: "/diary/", idx: 1, listReturn: "/diary/", dirty: false, pending: null, left: false, seq: 0 },
+    msgs: [],
+  };
+}
+const say = (w, m) => w.msgs.push(m);
+const newId = (w) => "n" + ++w.app.seq;
+const isEditing = (r) => r.view === "new" || r.view === "edit";
+function saveDoc(w, id) {
+  const old = w.db[id];
+  w.db[id] = { title: old ? old.title : `新日记 ${id}`, rev: (old ? old.rev : 0) + 1 };
+  w.app.dirty = false;
+  say(w, old ? `已保存「${old.title}」（版本 ${old.rev} → ${old.rev + 1}）` : `已创建「新日记 ${id}」`);
+}
+function bookmarkWorld(w) { // 从书签/外链直接打开某篇的编辑页（新标签页）
+  w.hist = { entries: [{ url: "/", st: null }, { url: U.edit("a"), st: { idx: 1, prev: null } }], index: 1 };
+  Object.assign(w.app, { url: U.edit("a"), idx: 1, listReturn: "/diary/", dirty: false, pending: null, left: false });
+  say(w, "新标签页里直接打开了「周末去海边」的编辑页（没有上一页）");
+}
+// 两个方案共享的“当前界面上有哪些按钮”
+function available(w) {
+  const a = new Set(["browserBack", "browserForward", "refresh", "bookmark"]);
+  if (w.app.left) return a;
+  if (w.app.pending) { ["leaveSave", "leaveDiscard", "leaveStay"].forEach((x) => a.add(x)); return a; }
+  const r = parse(w.app.url), exists = r.id && w.db[r.id];
+  if (r.view === "list") {
+    ["new", "filter", "nextPage"].forEach((x) => a.add(x));
+    for (const id in w.db) ["read:", "edit:", "delete:"].forEach((p) => a.add(p + id));
+  }
+  if (r.view === "read") { a.add("appBack"); if (exists) { a.add("editThis"); a.add("deleteThis"); } }
+  if (isEditing(r)) { a.add("appBack"); if (r.view === "new" || exists) { a.add("type"); a.add("save"); } }
+  return a;
+}
+
+// ---------------- 方案 A：当前实现（忠实模拟 DiaryApp.tsx） ----------------
+const Current = (() => {
+  function go(w, url, replace) {
+    const e = { url, st: {} };
+    w.hist = replace ? H.replace(w.hist, e) : H.push(w.hist, e);
+    Object.assign(w.app, { url, dirty: false, pending: null });
+    const r = parse(url);
+    if (r.view === "list") w.app.listReturn = url;
+    if (r.view === "new" && !r.id) {
+      const u = U.new(newId(w));
+      w.hist = H.replace(w.hist, { url: u, st: {} });
+      w.app.url = u;
+      say(w, "新建页生成 ID，再 replaceState 改写地址");
+    }
+  }
+  function navigate(w, url) {
+    if (w.app.dirty) { w.app.pending = { url }; say(w, "有未保存修改 → 弹出“还有未保存的修改”"); return; }
+    go(w, url, false);
+  }
+  function freshLoad(w) {
+    const e = H.cur(w.hist), r = parse(e.url);
+    Object.assign(w.app, { left: false, url: e.url, dirty: false, pending: null, listReturn: r.view === "list" ? e.url : "/diary/" });
+  }
+  function pop(w, delta) {
+    const ni = w.hist.index + delta;
+    if (ni < 0 || ni >= w.hist.entries.length) return say(w, `没有可以${delta < 0 ? "后退" : "前进"}的记录`);
+    const target = w.hist.entries[ni];
+    if (parse(target.url).view === "external") {
+      if (w.app.dirty) say(w, "浏览器弹出原生“离开网站？”提示（假设点了离开）→ 未保存内容丢失");
+      w.hist.index = ni; Object.assign(w.app, { left: true, dirty: false, pending: null });
+      return say(w, "离开日记，回到博客首页");
+    }
+    w.hist.index = ni;
+    if (w.app.left) { freshLoad(w); return say(w, "回到日记，页面重新加载"); }
+    w.hist = H.replace(w.hist, { url: w.app.url, st: {} });
+    say(w, "popstate：先把落脚的历史条目改写成当前地址，再 pushState 目标地址");
+    navigate(w, target.url);
+  }
+  function save(w) {
+    const r = parse(w.app.url);
+    if (r.view === "new" && w.db[r.id]) return say(w, "❌ 服务器返回 409 版本冲突：这个 ID 已经存在");
+    saveDoc(w, r.id);
+    if (r.view === "new") { w.hist = H.replace(w.hist, { url: U.edit(r.id), st: {} }); w.app.url = U.edit(r.id); say(w, "新建 → replaceState 成编辑页"); }
+  }
+  return {
+    name: "当前实现",
+    act: {
+      read: (w, id) => navigate(w, U.read(id)),
+      edit: (w, id) => navigate(w, U.edit(id)),
+      editThis: (w) => navigate(w, U.edit(parse(w.app.url).id)),
+      new: (w) => navigate(w, U.new()),
+      type: (w) => { w.app.dirty = true; say(w, "输入了一些文字"); },
+      save,
+      leaveSave: (w) => { const to = w.app.pending.url; const r = parse(w.app.url); if (r.view === "new" && w.db[r.id]) return say(w, "❌ 409 冲突"); saveDoc(w, r.id); say(w, "保存成功后直接 pushState 到目的地（新建页地址没被改写）"); go(w, to, false); },
+      leaveDiscard: (w) => go(w, w.app.pending.url, false),
+      leaveStay: (w) => { w.app.pending = null; say(w, "关闭弹窗，继续编辑"); },
+      delete: (w, id) => { say(w, `已删除「${w.db[id].title}」`); delete w.db[id]; say(w, "pushState 到列表返回地址"); go(w, w.app.listReturn, false); },
+      deleteThis: (w) => Current.act.delete(w, parse(w.app.url).id),
+      appBack: (w) => { say(w, "“← 返回日记列表” = pushState 列表地址"); navigate(w, w.app.listReturn); },
+      filter: (w) => { const r = parse(w.app.url); const u = U.list(r.q ? "" : "海", 1); w.hist = H.replace(w.hist, { url: u, st: {} }); w.app.url = u; w.app.listReturn = u; say(w, "筛选条件 → replaceState"); },
+      nextPage: (w) => { const r = parse(w.app.url); const u = U.list(r.q, r.page + 1); w.hist = H.replace(w.hist, { url: u, st: {} }); w.app.url = u; w.app.listReturn = u; say(w, "翻页 → replaceState（不进历史）"); },
+      browserBack: (w) => pop(w, -1),
+      browserForward: (w) => pop(w, 1),
+      refresh: (w) => { if (w.app.left) return say(w, "刷新博客首页"); if (w.app.dirty) say(w, "浏览器弹出原生“重新加载？”提示（假设确认）→ 未保存内容丢失"); freshLoad(w); say(w, "页面重新加载"); },
+      bookmark: bookmarkWorld,
+    },
+  };
+})();
+
+// ---------------- 方案 B：建议方案 ----------------
+// 规则：
+// 1. 每条历史在 history.state 里记 { idx, prev }：自己的深度和上一页地址。
+// 2. “← 返回”：如果上一页正是返回目标（列表；或编辑页的上一页是同一篇的阅读页）→ history.back()，不新增记录；
+//    否则（直接打开的链接）→ replaceState 到兜底目标（编辑→阅读，阅读/新建→列表）。
+// 3. popstate 不再改写历史。有未保存修改时，history.go(-delta) 撤回这一步并弹窗；确认后再 history.go(delta)。
+// 4. 落到任何地址后统一校验：日记已删除 → replaceState 成列表；新建 ID 已存在 → replaceState 成编辑页。
+// 5. 删除后：上一页是列表 → history.back()；否则 replaceState 成列表。在列表上删除 → 原地刷新。
+// 6. 新建在点击时就生成 ID，直接 pushState，不多一次 replace；首次保存后 replaceState 成编辑页（含“保存后离开”）。
+// 7. 筛选条件 replaceState；翻页 pushState（后退可以回到上一页）。← 这是一个待确认的取舍。
+const Proposal = (() => {
+  function entry(w, url, mode) {
+    const cur = H.cur(w.hist);
+    const st = mode === "push" ? { idx: w.app.idx + 1, prev: w.app.url } : { idx: cur.st?.idx ?? w.app.idx, prev: cur.st?.prev ?? null };
+    w.hist = mode === "push" ? H.push(w.hist, { url, st }) : H.replace(w.hist, { url, st });
+    w.app.url = url; w.app.idx = st.idx;
+  }
+  function resolve(w) {
+    const r = parse(w.app.url);
+    w.app.dirty = false; w.app.pending = null;
+    if ((r.view === "read" || r.view === "edit") && !w.db[r.id]) { say(w, "这篇日记已不存在 → replaceState 成列表，不留死链"); entry(w, w.app.listReturn, "replace"); }
+    else if (r.view === "new" && w.db[r.id]) { say(w, "这个新建 ID 已保存过 → replaceState 成编辑页"); entry(w, U.edit(r.id), "replace"); }
+    if (parse(w.app.url).view === "list") w.app.listReturn = w.app.url;
+  }
+  const go = (w, url, mode) => { entry(w, url, mode); resolve(w); };
+  function popNow(w, delta) {
+    const ni = w.hist.index + delta;
+    if (ni < 0 || ni >= w.hist.entries.length) return say(w, `没有可以${delta < 0 ? "后退" : "前进"}的记录`);
+    const t = w.hist.entries[ni];
+    if (parse(t.url).view === "external") {
+      if (w.app.dirty) say(w, "跨页面离开无法拦截，浏览器弹出原生“离开网站？”提示（假设点了离开）");
+      w.hist.index = ni; Object.assign(w.app, { left: true, dirty: false, pending: null });
+      return say(w, "离开日记，回到博客首页");
+    }
+    if (w.app.left) { w.app.left = false; say(w, "回到日记，页面重新加载（history.state 仍在）"); }
+    w.hist.index = ni; w.app.url = t.url; w.app.idx = t.st?.idx ?? w.app.idx;
+    resolve(w);
+  }
+  function run(w, p) {
+    if (p.kind === "go") go(w, p.url, p.mode);
+    else popNow(w, p.delta);
+  }
+  function intent(w, p) {
+    if (w.app.dirty) { w.app.pending = p; say(w, "有未保存修改 → 弹出“还有未保存的修改”"); return; }
+    run(w, p);
+  }
+  function backTarget(w) {
+    const r = parse(w.app.url), prev = H.cur(w.hist).st?.prev, pr = prev && parse(prev);
+    const canBack = pr && (pr.view === "list" || (r.view === "edit" && pr.view === "read" && pr.id === r.id));
+    const fallback = r.view === "edit" && w.db[r.id] ? U.read(r.id) : w.app.listReturn;
+    return canBack ? { kind: "pop", delta: -1, why: "上一页就是返回目标 → history.back()，不新增记录" } : { kind: "go", url: fallback, mode: "replace", why: "没有合适的上一页 → replaceState 到兜底页" };
+  }
+  function browser(w, delta) {
+    const ni = w.hist.index + delta, t = w.hist.entries[ni];
+    if (t && w.app.dirty && !w.app.left && parse(t.url).view !== "external") {
+      w.app.pending = { kind: "pop", delta };
+      return say(w, `浏览器已${delta < 0 ? "后退" : "前进"}一步 → 应用立即 history.go(${-delta}) 撤回，地址不变，弹出确认框`);
+    }
+    popNow(w, delta);
+  }
+  function save(w) {
+    const r = parse(w.app.url);
+    saveDoc(w, r.id);
+    if (r.view === "new") { entry(w, U.edit(r.id), "replace"); say(w, "首次保存 → replaceState 成编辑页（后退/刷新不会再看到空白新建页）"); }
+  }
+  return {
+    name: "建议方案",
+    act: {
+      read: (w, id) => intent(w, { kind: "go", url: U.read(id), mode: "push" }),
+      edit: (w, id) => intent(w, { kind: "go", url: U.edit(id), mode: "push" }),
+      editThis: (w) => Proposal.act.edit(w, parse(w.app.url).id),
+      new: (w) => { const id = newId(w); say(w, "点击时就生成 ID，直接 pushState"); intent(w, { kind: "go", url: U.new(id), mode: "push" }); },
+      type: (w) => { w.app.dirty = true; say(w, "输入了一些文字"); },
+      save,
+      leaveSave: (w) => { const p = w.app.pending; w.app.pending = null; save(w); run(w, p); },
+      leaveDiscard: (w) => { const p = w.app.pending; w.app.pending = null; w.app.dirty = false; say(w, "放弃修改，继续刚才的跳转"); run(w, p); },
+      leaveStay: (w) => { w.app.pending = null; say(w, "关闭弹窗，继续编辑"); },
+      delete: (w, id) => {
+        say(w, `已删除「${w.db[id].title}」`); delete w.db[id];
+        if (parse(w.app.url).view === "list") return say(w, "就在列表上 → 原地刷新，不跳转");
+        const t = backTarget(w); say(w, t.why); run(w, t.kind === "go" ? { ...t, url: w.app.listReturn } : t);
+      },
+      deleteThis: (w) => Proposal.act.delete(w, parse(w.app.url).id),
+      appBack: (w) => { const t = backTarget(w); say(w, "“← 返回”：" + t.why); intent(w, t); },
+      filter: (w) => { const r = parse(w.app.url); entry(w, U.list(r.q ? "" : "海", 1), "replace"); w.app.listReturn = w.app.url; say(w, "筛选条件 → replaceState"); },
+      nextPage: (w) => { const r = parse(w.app.url); go(w, U.list(r.q, r.page + 1), "push"); say(w, "翻页 → pushState（后退回上一页）"); },
+      browserBack: (w) => browser(w, -1),
+      browserForward: (w) => browser(w, 1),
+      refresh: (w) => { if (w.app.left) return say(w, "刷新博客首页"); if (w.app.dirty) say(w, "浏览器弹出原生“重新加载？”提示（假设确认）"); popNow(w, 0); say(w, "页面重新加载"); },
+      bookmark: bookmarkWorld,
+    },
+  };
+})();
+
+function dispatch(model, world, action) {
+  const w = structuredClone(world); w.msgs = [];
+  if (!available(world).has(action)) { say(w, "（这个界面上没有这个操作，跳过）"); return w; }
+  const [name, arg] = action.split(":");
+  model.act[name](w, arg);
+  return w;
+}
+function screenOf(w) {
+  if (w.app.left) return { cls: "out", t: "博客首页", s: "已经离开日记应用" };
+  const r = parse(w.app.url), d = w.db[r.id];
+  if (r.view === "list") return { t: "日记列表" + (r.q ? ` · 搜索“${r.q}”` : "") + (r.page > 1 ? ` · 第 ${r.page} 页` : "") };
+  if (r.view === "read") return d ? { t: `阅读「${d.title}」` } : { cls: "bad", t: "日记不存在", s: "死链：这篇已被删除" };
+  if (r.view === "edit") return d ? { t: `编辑「${d.title}」` } : { cls: "bad", t: "日记不存在", s: "死链：这篇已被删除" };
+  return d ? { cls: "warn", t: "空白的新建表单", s: `但 ID ${r.id} 已经保存过 —— 再保存会得到 409 版本冲突` } : { t: `写新日记（ID ${r.id}）` };
+}
+
+// =====================================================================
+// 页面外壳（一次性）
+// =====================================================================
+const MODELS = [Current, Proposal];
+let worlds, prevWorlds;
+function reset() { worlds = MODELS.map(initialWorld); prevWorlds = worlds; }
+function doAction(a) { prevWorlds = worlds; worlds = MODELS.map((m, i) => dispatch(m, worlds[i], a)); render(); }
+
+const LABEL = {
+  new: "写日记", filter: "切换搜索词“海”", nextPage: "下一页",
+  editThis: "编辑这篇", deleteThis: "删除这篇", appBack: "← 返回", type: "输入文字", save: "保存",
+  leaveSave: "保存后离开", leaveDiscard: "放弃修改", leaveStay: "继续编辑",
+  browserBack: "浏览器 ← 后退", browserForward: "浏览器 前进 →", refresh: "浏览器 ⟳ 刷新", bookmark: "从书签打开「周末去海边」编辑页",
+};
+function titleOf(id) { for (const w of worlds) if (w.db[id]) return w.db[id].title; return id; }
+function labelOf(a) {
+  const [n, id] = a.split(":");
+  if (id) return { read: "打开", edit: "编辑", delete: "删除" }[n] + `「${titleOf(id)}」`;
+  return LABEL[a];
+}
+function btn(a, cls = "") {
+  const ok = worlds.some((w) => available(w).has(a));
+  return `<button class="${cls}" ${ok ? "" : "disabled"} onclick="doAction('${a}')">${labelOf(a)}</button>`;
+}
+function renderButtons() {
+  const ids = [...new Set(worlds.flatMap((w) => Object.keys(w.db)))];
+  const g = (name, list) => `<div class="grp"><span>${name}</span>${list.join("")}</div>`;
+  document.getElementById("buttons").innerHTML =
+    g("列表页", [btn("new", "primary"), btn("filter"), btn("nextPage"), ...ids.flatMap((id) => [btn("read:" + id), btn("edit:" + id), btn("delete:" + id)])]) +
+    g("阅读 / 编辑页", ["appBack", "editThis", "deleteThis", "type", "save"].map((a) => btn(a))) +
+    g("未保存弹窗", ["leaveSave", "leaveDiscard", "leaveStay"].map((a) => btn(a))) +
+    g("浏览器", ["browserBack", "browserForward", "refresh", "bookmark"].map((a) => btn(a))) +
+    g("", [`<button onclick="reset();render()">重置</button>`]);
+}
+const short = (u) => (u === "/" ? "博客首页" : decodeURIComponent(u.replace("/diary/", "") || "列表").replace("?view=", "").replace("&id=", ":").replace("?", "列表?"));
+function renderCols() {
+  document.getElementById("cols").innerHTML = MODELS.map((m, i) => {
+    const w = worlds[i], p = prevWorlds[i], s = screenOf(w), ps = screenOf(p);
+    const ch = (a, b) => (a !== b ? "changed" : "");
+    const url = H.cur(w.hist).url, purl = H.cur(p.hist).url;
+    const stack = w.hist.entries.map((e, k) => `<span class="chip ${k === w.hist.index ? "cur" : k > w.hist.index ? "fwd" : ""}">${short(e.url)}</span>`).join("");
+    const dialog = w.app.pending ? "“还有未保存的修改”" : "无";
+    return `<div class="col">
+      <h3>${m.name}<span class="muted">${i ? "B" : "A"}</span></h3>
+      <div class="addr ${ch(url, purl)}">${decodeURIComponent(url)}</div>
+      <div class="screen ${s.cls || ""}"><span class="${ch(s.t, ps.t)}">${s.t}</span>${s.s ? `<small>${s.s}</small>` : ""}</div>
+      <dl>
+        <dt>未保存修改</dt><dd class="${ch(w.app.dirty, p.app.dirty)}">${w.app.dirty ? "有" : "无"}</dd>
+        <dt>弹窗</dt><dd class="${ch(!!w.app.pending, !!p.app.pending)}">${dialog}</dd>
+        <dt>历史记录</dt><dd><div class="stack ${ch(w.hist.entries.length, p.hist.entries.length)}">${stack}</div><small class="muted">共 ${w.hist.entries.length} 条，蓝色为当前，虚线为“前进”可达</small></dd>
+        <dt>列表返回地址</dt><dd>${decodeURIComponent(w.app.listReturn)}</dd>
+        <dt>日记库</dt><dd>${Object.entries(w.db).map(([id, d]) => `${d.title}<span class="muted"> v${d.rev}</span>`).join("，") || "空"}</dd>
+      </dl>
+      <ol class="msgs">${w.msgs.map((x) => `<li>${x}</li>`).join("") || '<li class="muted">还没有操作</li>'}</ol>
+    </div>`;
+  }).join("");
+}
+
+const SCENARIOS = [
+  { name: "① 后退键来回跳", desc: "打开一篇日记，然后一直按浏览器后退。正常情况下应该回到列表，再后退就回到博客首页。",
+    a: "列表和阅读页之间来回跳，永远回不到博客首页（popstate 改写历史后又 push 了一条）。", b: "列表 → 博客首页。",
+    steps: ["read:a", "browserBack", "browserBack", "browserBack"] },
+  { name: "② “返回”让历史越堆越长", desc: "列表 → 阅读 → 编辑 → 点「← 返回」，然后按浏览器后退。",
+    a: "「返回」每次都 push 一条列表，后退会退回编辑页，然后又陷入来回跳。", b: "编辑页的「返回」回到阅读页（history.back）；后退依次到列表、博客首页。",
+    steps: ["read:a", "editThis", "appBack", "browserBack", "browserBack"] },
+  { name: "③ 删除后后退遇到死链", desc: "打开一篇日记并删除，然后按浏览器后退，再连按两次前进。",
+    a: "后退显示“日记不存在”。", b: "删除时已经 back 回列表；后退离开日记；前进到已删除的那条时自动换成列表。",
+    steps: ["read:a", "deleteThis", "browserBack", "browserForward", "browserForward"] },
+  { name: "④ 新建“保存后离开”再后退", desc: "写新日记、输入文字，点「← 返回」，在弹窗里选「保存后离开」，然后按浏览器后退。",
+    a: "后退回到一张空白新建表单，ID 却已存在 —— 再保存就是 409 冲突。", b: "保存时新建页已改写为编辑页，后退直接离开日记，不会出现空白新建页。",
+    steps: ["new", "type", "appBack", "leaveSave", "browserBack"] },
+  { name: "⑤ 未保存时按后退", desc: "编辑一篇并输入文字，按浏览器后退 → 继续编辑；再按后退 → 放弃修改；再后退。",
+    a: "第一次后退已把历史改乱；“继续编辑”后再按后退，直接跳出日记（只有浏览器原生提示）。", b: "每次后退都会被撤回并弹窗；放弃后到列表；再后退离开日记。",
+    steps: ["edit:a", "type", "browserBack", "leaveStay", "browserBack", "leaveDiscard", "browserBack"] },
+  { name: "⑥ 翻页与返回（待决定）", desc: "翻两页，打开一篇，点「← 返回」，然后按浏览器后退。",
+    a: "「返回」回到第 3 页但 push 了新记录；后退又回到阅读页。", b: "「返回」回到第 3 页；后退回到第 2 页。问题：你希望后退能一页一页往回翻吗？",
+    steps: ["nextPage", "nextPage", "read:b", "appBack", "browserBack"] },
+  { name: "⑦ 从书签直接打开编辑页", desc: "没有上一页时，「← 返回」应该去哪里？",
+    a: "push 列表；后退又回到编辑页。", b: "编辑页没有上一页 → replace 成阅读页；再返回 → replace 成列表；后退离开日记。",
+    steps: ["bookmark", "appBack", "appBack", "browserBack"] },
+];
+let tab = 0, step = 0;
+function startScenario(i) { tab = i; step = 0; reset(); render(); }
+function runStep(i) { if (i !== step) return; doAction(SCENARIOS[tab].steps[i]); step++; render(); }
+function renderScenario() {
+  document.getElementById("tabs").innerHTML = SCENARIOS.map((s, i) => `<button class="${i === tab ? "on" : ""}" onclick="startScenario(${i})">${s.name}</button>`).join("");
+  const s = SCENARIOS[tab];
+  document.getElementById("scenario").innerHTML = `
+    <p>${s.desc}</p>
+    <div class="expect"><div><b>A 当前实现：</b>${s.a}</div><div><b>B 建议方案：</b>${s.b}</div></div>
+    <div class="steps">${s.steps.map((a, i) => `<button class="${i < step ? "done" : i === step ? "primary" : ""}" ${i === step ? "" : "disabled"} onclick="runStep(${i})">${i + 1}. ${labelOf(a)}</button>`).join("<span class=muted>→</span>")}
+      <button onclick="startScenario(${tab})">重新开始</button></div>
+    ${step >= s.steps.length ? `<p class="verdict">✅ 场景完成。对照下面两栏的“当前界面”和“历史记录”。</p>` : ""}`;
+}
+function render() { renderScenario(); renderButtons(); renderCols(); }
+reset(); render();
+</script>
+</body>
+</html>

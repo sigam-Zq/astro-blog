@@ -20,28 +20,23 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 	<body class="min-h-screen flex flex-col" style="background-color: var(--bg-primary);">
 		<Header />
 		<main id="main-content" class="flex-1">
-			<section class="py-20 px-4">
+			<section class="hero relative overflow-hidden px-4 py-16 md:py-28">
 				<div class="max-w-4xl mx-auto text-center">
-					<h1 class="text-4xl md:text-5xl font-bold mb-4" style="color: var(--text-primary);">
-						{SITE_TITLE}
+					<div class="avatar-ring mx-auto mb-8">
+						<img src="avatar.jpeg" alt="博主头像" />
+					</div>
+					<h1 class="hero-title font-bold mb-5">
+						你好，我是 <em>Zq</em>
 					</h1>
-					<p class="text-xl mb-6" style="color: var(--text-secondary);">
-						{SITE_DESCRIPTION}
-					</p>
-					<p class="mb-8 max-w-2xl mx-auto leading-relaxed flex items-center justify-center gap-4" style="color: var(--text-muted);">
-						<img src="avatar.jpeg" alt="博主头像" class="w-16 h-16 rounded-full object-cover">
-						这个世界会变好吗?
-					</p>
-					<a
-						href="mailto:zq1024088055@163.com"
-						class="inline-flex items-center gap-2 px-6 py-3 rounded-lg
-						       hover:scale-105 active:scale-95
-						       transition-all duration-200 shadow-md hover:shadow-lg"
-						style="background-color: var(--text-primary); color: var(--bg-primary);"
-					>
-<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-						zq1024088055@163.com
-					</a>
+					<p class="hero-sub mb-3">{SITE_DESCRIPTION}</p>
+					<p class="hero-quote mb-10">这个世界会变好吗?</p>
+					<div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+						<a href="/blog" class="btn btn-primary">阅读文章 →</a>
+						<button type="button" class="btn btn-ghost" id="copy-email" data-email="zq1024088055@163.com">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+							<span class="copy-label">点击复制邮箱</span>
+						</button>
+					</div>
 				</div>
 			</section>
 
@@ -57,7 +52,7 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 								       transition-all duration-150"
 								style="background-color: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color);"
 							>
-								{tag}
+								<span style="color: var(--accent);">#</span>{tag}
 							</a>
 						))}
 					</div>
@@ -95,5 +90,111 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 			</section>
 		</main>
 		<Footer />
+		<script>
+			const btn = document.getElementById('copy-email');
+			btn?.addEventListener('click', async () => {
+				const label = btn.querySelector('.copy-label');
+				try {
+					await navigator.clipboard.writeText(btn.dataset.email || '');
+					if (label) label.textContent = '✓ 已复制';
+				} catch {
+					location.href = 'mailto:' + btn.dataset.email;
+				}
+				setTimeout(() => { if (label) label.textContent = '点击复制邮箱'; }, 1800);
+			});
+		</script>
 	</body>
 </html>
+
+<style>
+	.hero::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		z-index: -1;
+		background-image: radial-gradient(var(--border-muted) 1.2px, transparent 1.2px);
+		background-size: 22px 22px;
+		-webkit-mask-image: radial-gradient(ellipse at 50% 35%, #000 25%, transparent 75%);
+		mask-image: radial-gradient(ellipse at 50% 35%, #000 25%, transparent 75%);
+	}
+	.hero::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: -120px;
+		width: min(640px, 90vw);
+		height: 320px;
+		transform: translateX(-50%);
+		z-index: -1;
+		background: radial-gradient(closest-side, var(--accent-soft), transparent);
+		filter: blur(30px);
+	}
+	.avatar-ring {
+		width: 96px;
+		height: 96px;
+		padding: 3px;
+		border-radius: 50%;
+		background: conic-gradient(from 0deg, var(--accent), #ffd23f, #4cc9f0, var(--accent));
+		animation: ring-spin 8s linear infinite;
+	}
+	.avatar-ring img {
+		width: 100%;
+		height: 100%;
+		border-radius: 50%;
+		border: 3px solid var(--bg-primary);
+		object-fit: cover;
+		animation: ring-spin 8s linear infinite reverse;
+	}
+	@keyframes ring-spin { to { transform: rotate(360deg); } }
+	.hero-title {
+		font-size: clamp(2.2rem, 7vw, 3.8rem);
+		line-height: 1.15;
+		color: var(--text-primary);
+	}
+	.hero-title em {
+		font-style: normal;
+		background: linear-gradient(transparent 62%, var(--accent-soft) 62%);
+		color: var(--accent);
+		padding: 0 0.12em;
+	}
+	.hero-sub { color: var(--text-secondary); font-size: 1.1rem; }
+	.hero-quote {
+		color: var(--text-muted);
+		font-family: var(--font-display);
+		font-style: italic;
+	}
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		min-height: 48px;
+		padding: 0 1.5rem;
+		border-radius: 999px;
+		font-weight: 600;
+		font-size: 0.95rem;
+		text-decoration: none;
+		cursor: pointer;
+		transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+	}
+	.btn:active { transform: scale(0.96); }
+	.btn-primary {
+		background: var(--text-primary);
+		color: var(--bg-primary);
+		border: 1px solid var(--text-primary);
+	}
+	.btn-primary:hover { color: var(--bg-primary); box-shadow: 0 8px 20px var(--accent-soft); }
+	.btn-ghost {
+		background: var(--bg-tertiary);
+		color: var(--text-primary);
+		border: 1px solid var(--border-color);
+	}
+	@media (hover: hover) {
+		.btn:hover { transform: translateY(-2px); }
+		.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+	}
+	@media (max-width: 639px) { .btn { width: 100%; max-width: 320px; } }
+	@media (prefers-reduced-motion: reduce) {
+		.avatar-ring, .avatar-ring img { animation: none; }
+	}
+</style>

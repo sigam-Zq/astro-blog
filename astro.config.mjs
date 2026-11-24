@@ -8,7 +8,7 @@ import preact from '@astrojs/preact';
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://blogs.zqsrh.com',
-	vite: { server: { proxy: { '/api': process.env.DIARY_DEV_API_TARGET || 'http://127.0.0.1:8080' } } },
+	vite: { optimizeDeps: { include: ['mermaid'] }, server: { proxy: { '/api': process.env.DIARY_DEV_API_TARGET || 'http://127.0.0.1:8080' } } },
 	markdown: {
 		syntaxHighlight: { type: 'shiki', excludeLangs: ['mermaid'] },
 	},
