@@ -45,7 +45,7 @@ tags:
 * 服务已经启动. 目录从根 移到了 /root/mail
 * 解析 还差一个 配置 DKIM
 
-* docker compose -p mailu exec admin flask mailu admin admin zqsrh.com PASSWORD
+* docker compose -p mailu exec admin flask mailu admin admin example.com PASSWORD
 
 
 ````md

@@ -25,7 +25,7 @@ spring:
         pattern: /druid/*
         enabled: true
         login-username: admin
-        login-password: 123456
+        login-password: <your-password>
         allow:
         reset-enable: false
       web-stat-filter:
@@ -93,7 +93,7 @@ spring:
         enabled: true
         pattern: /druid/*
         login-username: admin
-        login-password: 123456
+        login-password: <your-password>
         allow:
         reset-enable: false
       web-stat-filter:
@@ -156,7 +156,7 @@ knife4j:
   basic:
     enable: false
     username: jeecg
-    password: jeecg1314
+    password: <your-password>
     #  省略
 ```
 

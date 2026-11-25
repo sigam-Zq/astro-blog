@@ -15,7 +15,7 @@ pubDate: 2026-04-16T11:44:05.569Z
 # MySQL 配置
 MYSQL_CONTAINER="yzt-mysql"          # MySQL 容器名
 MYSQL_USER="root"
-MYSQL_PWD="123456"
+MYSQL_PWD="<your-password>"
 
 # 项目路径（Docker 挂载出来的真实路径）
 PROJECT_PATH=".."
