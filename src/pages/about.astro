@@ -8,11 +8,13 @@ import Layout from '../layouts/BlogPost.astro';
 	pubDate={new Date('2024-01-01')}
 	heroImage="/blog-placeholder-about.jpg"
 >
-	<p>我叫 Zq，偏向后端的全栈开发者。前后端都写，更偏后端。</p>
+	<p>我叫 Zq，偏向后端的全栈AI开发工程师。前后端都写，后端出身。</p>
 
-	<p>工作用 Go 写后端，前端也能对付。</p>
+	<p>工作用 Go 写后端，前端也能对付。现在主要用 Grok、Cursor、Antigravity、Codex、pi agent 做前后端开发。</p>
 
-	<p>业余在学 Rust、AI、区块链。感兴趣，不深。变化快，学的可能过时。先记下来，能走多远算多远。</p>
+	<p>比较喜欢 Matt Pocock 的工作流和 skills。也在学习和了解 AI 工程和原理。最近还在学英语。</p>
+	
+	<p>也在学 Rust、AI、区块链。感兴趣，不深。变化快，学的可能过时。先记下来，能走多远算多远。</p>
 
 	<p>博客内容：</p>
 	<ul>
@@ -41,5 +43,73 @@ import Layout from '../layouts/BlogPost.astro';
 
 	<p>如果你也在路上，想一起进步、交流踩坑，或者交个同行朋友，欢迎来聊。</p>
 
-	<p>邮箱：zq1024088055@163.com</p>
+
+	<h2>联系方式</h2>
+
+	<p>邮箱：<code>zq1024088055@163.com</code></p>
+
+	<div class="contact-actions">
+		<button type="button" class="copy-btn" id="copy-email" data-email="zq1024088055@163.com">
+			<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+			<span class="copy-label">点击复制邮箱</span>
+		</button>
+		<a class="mail-link" href="mailto:zq1024088055@163.com">发邮件</a>
+	</div>
+
+	<h2>最近的学习</h2>
+
+	
+		<p>当当当, 刚完成了 Matt Pocock 这个课程，发了结业证书。</p>
+		
+		<p>不难拿, 就是挺开心拿到的, 这一套skill下的工作流也算是我工作上的指路明灯了也算是。</p>
+	<figure>
+		<img
+			src="/img/other/qiang-skills-workflow-certificate.png"
+			alt="AI Hero Skills Workflow Course 结业证书"
+			loading="lazy"
+			style="border-radius: 8px; max-width: 100%; height: auto;"
+		/>
+		<figcaption>AI Hero · Skills Workflow Course · Certificate of Completion</figcaption>
+	</figure>
 </Layout>
+
+<script>
+	const btn = document.getElementById('copy-email');
+	btn?.addEventListener('click', async () => {
+		const email = btn.dataset.email || '';
+		const label = btn.querySelector('.copy-label');
+		let ok = false;
+		try {
+			await navigator.clipboard.writeText(email);
+			ok = true;
+		} catch {
+			const ta = document.createElement('textarea');
+			ta.value = email;
+			ta.style.position = 'fixed';
+			ta.style.opacity = '0';
+			document.body.appendChild(ta);
+			ta.select();
+			try { ok = document.execCommand('copy'); } catch {}
+			ta.remove();
+		}
+		if (label) label.textContent = ok ? '✓ 已复制' : '复制失败，请手动复制';
+		setTimeout(() => { if (label) label.textContent = '点击复制邮箱'; }, 1800);
+	});
+</script>
+
+<style>
+	.contact-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 1rem; }
+	.copy-btn {
+		display: inline-flex; align-items: center; gap: 0.5rem;
+		min-height: 44px; padding: 0 1.25rem; border-radius: 999px;
+		font-weight: 600; font-size: 0.95rem; cursor: pointer;
+		background: var(--bg-tertiary); color: var(--text-primary);
+		border: 1px solid var(--border-color);
+		transition: border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+	}
+	.copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+	.copy-btn:active { transform: scale(0.97); }
+	.mail-link { font-size: 0.95rem; }
+	figure { margin: 1.5rem 0; }
+	figcaption { margin-top: 0.5rem; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
+</style>
