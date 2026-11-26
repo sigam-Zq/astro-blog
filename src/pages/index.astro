@@ -4,12 +4,42 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
 import { getCollection } from 'astro:content';
+import { ROOTS, postNodeIds, resolvePostTags, displayLabel } from '../data/taxonomy.mjs';
+import { ROOT_ICON, ROOT_BLURB, hueOf } from '../data/rootStyle';
 
 const posts = (await getCollection('blog')).sort(
 	(a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
 );
-const latestPosts = posts.slice(0, 3);
-const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
+const visible = posts.filter(p => !p.data.hidden);
+const latestPosts = visible.slice(0, 3);
+const now = new Date();
+const latestDate = visible[0]?.data.pubDate;
+const diffDays = latestDate ? Math.max(0, Math.floor((now.getTime() - latestDate.getTime()) / 86400000)) : 0;
+const agoText = diffDays === 0 ? '今天' : diffDays === 1 ? '昨天' : diffDays < 30 ? `${diffDays} 天前` : `${Math.floor(diffDays / 30)} 个月前`;
+const monthCount = visible.filter(p => p.data.pubDate.getFullYear() === now.getFullYear() && p.data.pubDate.getMonth() === now.getMonth()).length;
+
+// One tile per top-level category: count, top sub-tags, newest post
+const tiles = Object.entries(ROOTS).map(([id, r]) => {
+	const inRoot = visible.filter(p => postNodeIds(p.data.tags).has(id));
+	const sub = new Map<string, { label: string; count: number }>();
+	inRoot.forEach(p => resolvePostTags(p.data.tags).forEach((path: string[]) => {
+		if (path[0] !== id || !path[1]) return;
+		const k = path[1];
+		sub.set(k, { label: displayLabel(k, p.data.tags), count: (sub.get(k)?.count ?? 0) + 1 });
+	}));
+	return {
+		id, label: r.label, count: inRoot.length, blurb: ROOT_BLURB[id] ?? '',
+		subs: [...sub.entries()].sort((a, b) => b[1].count - a[1].count).slice(0, 4),
+		latest: inRoot.slice(0, 2),
+	};
+});
+// The busiest real category (not Other) gets the tall tile
+const featured = tiles.filter(t => t.id !== 'other').sort((a, b) => b.count - a.count)[0]?.id;
+// featured first, then by size, empty ones last (keep taxonomy order for ties)
+const rank = (t: { id: string; count: number }) => (t.id === featured ? 1e9 : t.count);
+tiles.sort((a, b) => rank(b) - rank(a));
+const rootOf = (tags?: string[]) => resolvePostTags(tags)[0][0];
+const fmt = (d: Date) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 ---
 
 <!doctype html>
@@ -29,7 +59,16 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 						你好，我是 <em>Zq</em>
 					</h1>
 					<p class="hero-sub mb-3">{SITE_DESCRIPTION}</p>
-					<p class="hero-quote mb-10">这个世界会变好吗?</p>
+					<p class="hero-quote mb-3" id="hero-quote" data-quotes={JSON.stringify([
+						'这个世界会变好吗?',
+						'保持好奇，保持记录。',
+						'先把问题拆小，再一步步解决。',
+						'代码是写给人看的，顺便让机器执行。',
+					])}>这个世界会变好吗?</p>
+					<p class="hero-status mb-8">
+						<span class="pulse-dot" aria-hidden="true"></span>
+						<span>最近更新：{agoText} · {monthCount > 0 ? `本月写了 ${monthCount} 篇` : `共 ${visible.length} 篇`}</span>
+					</p>
 					<div class="flex flex-col sm:flex-row items-center justify-center gap-3">
 						<a href="/blog" class="btn btn-primary">阅读文章 →</a>
 						<button type="button" class="btn btn-ghost" id="copy-email" data-email="zq1024088055@163.com">
@@ -40,67 +79,134 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 				</div>
 			</section>
 
-			<section class="py-16 px-4" style="background-color: var(--bg-secondary);">
-				<div class="max-w-4xl mx-auto">
-					<h2 class="text-2xl font-bold mb-8 text-center" style="color: var(--text-primary);">标签</h2>
-					<div class="flex flex-wrap justify-center gap-3">
-						{tags.map(tag => (
-							<a
-								href={`/blog?tag=${tag}`}
-								class="px-4 py-2 rounded-full text-sm font-medium
-								       hover:scale-105 active:scale-95
-								       transition-all duration-150"
-								style="background-color: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border-color);"
-							>
-								<span style="color: var(--accent);">#</span>{tag}
-							</a>
-						))}
+			<section class="px-4 pb-20">
+				<div class="max-w-5xl mx-auto">
+					<header class="sec-head">
+						<span class="eyebrow">Explore</span>
+						<h2>从一个方向开始</h2>
+						<p>{visible.length} 篇文章，散落在 {tiles.filter(t => t.count).length} 个角落</p>
+					</header>
+
+					<div class="bento">
+						{tiles.map((t, i) => {
+							const Tag = t.count ? 'a' : 'div';
+							return (
+								<Tag
+									href={t.count ? `/blog?tag=${t.id}` : undefined}
+									class:list={['tile', { feat: t.id === featured, empty: !t.count }]}
+									style={`--hue:${hueOf(t.id)};animation-delay:${i * 70}ms`}
+								>
+									<div class="tile-top">
+										<span class="ico">
+											<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d={ROOT_ICON[t.id]} /></svg>
+										</span>
+										<span class="num" aria-label={`${t.count} 篇`}>{String(t.count).padStart(2, '0')}</span>
+									</div>
+									<div class="tile-body">
+										<h3>{t.label}{t.count > 0 && <span class="arrow" aria-hidden="true">→</span>}</h3>
+										<p class="blurb">{t.count ? t.blurb : '还在酝酿中…'}</p>
+										{t.subs.length > 0 && (
+											<div class="subs">
+												{t.subs.map(([, s]) => <span>#{s.label}<sup>{s.count}</sup></span>)}
+											</div>
+										)}
+										{t.id === featured && t.latest.length > 0 && (
+											<ul class="recent">
+												{t.latest.map(p => <li><time>{fmt(p.data.pubDate)}</time>{p.data.title}</li>)}
+											</ul>
+										)}
+									</div>
+								</Tag>
+							);
+						})}
 					</div>
 				</div>
 			</section>
 
-			<section class="py-16 px-4">
-				<div class="max-w-4xl mx-auto">
-					<h2 class="text-2xl font-bold mb-8 text-center" style="color: var(--text-primary);">最新文章</h2>
-					<div class="grid gap-6 md:grid-cols-3">
-						{latestPosts.map((post, index) => (
-							<a
-								href={`/blog/${post.id}/`}
-								class={`block p-6 rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-250 animate-fade-in-up stagger-${index + 1}`}
-								style="background-color: var(--bg-secondary); border: 1px solid var(--border-color);"
-							>
-								<div class="flex items-center gap-2 text-sm mb-3" style="color: var(--text-muted);">
-									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-									</svg>
-									<time datetime={post.data.pubDate.toISOString()}>
-										{post.data.pubDate.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })}
-									</time>
-								</div>
-								<h3 class="text-lg font-semibold mb-2 line-clamp-2" style="color: var(--text-primary);">
-									{post.data.title}
-								</h3>
-								<p class="text-sm line-clamp-3" style="color: var(--text-secondary);">
-									{post.data.description}
-								</p>
-							</a>
-						))}
+			<section class="px-4 pb-24">
+				<div class="max-w-5xl mx-auto">
+					<header class="sec-head row">
+						<div>
+							<span class="eyebrow">Latest</span>
+							<h2>最近在写</h2>
+						</div>
+						<a href="/blog" class="more">全部文章 <span aria-hidden="true">→</span></a>
+					</header>
+					<div class="latest">
+						{latestPosts.map((post, i) => {
+							const root = rootOf(post.data.tags);
+							return (
+								<a href={`/blog/${post.id}/`} class="card" style={`--hue:${hueOf(root)};animation-delay:${i * 90}ms`}>
+									<span class="idx" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
+									<div class="meta">
+										<span class="badge">{ROOTS[root]?.label ?? 'Other'}</span>
+										<time datetime={post.data.pubDate.toISOString()}>{fmt(post.data.pubDate)}</time>
+									</div>
+									<h3 transition:name={`post-title-${post.id}`}>{post.data.title}</h3>
+									<p>{post.data.description}</p>
+								</a>
+							);
+						})}
 					</div>
 				</div>
 			</section>
 		</main>
 		<Footer />
 		<script>
-			const btn = document.getElementById('copy-email');
-			btn?.addEventListener('click', async () => {
-				const label = btn.querySelector('.copy-label');
-				try {
-					await navigator.clipboard.writeText(btn.dataset.email || '');
-					if (label) label.textContent = '✓ 已复制';
-				} catch {
-					location.href = 'mailto:' + btn.dataset.email;
+			document.addEventListener('astro:page-load', () => {
+				const btn = document.getElementById('copy-email');
+				if (btn && !btn.dataset.bound) {
+					btn.dataset.bound = '1';
+					btn.addEventListener('click', async () => {
+						const label = btn.querySelector('.copy-label');
+						try {
+							await navigator.clipboard.writeText(btn.dataset.email || '');
+							if (label) label.textContent = '✓ 已复制';
+						} catch {
+							location.href = 'mailto:' + btn.dataset.email;
+						}
+						setTimeout(() => { if (label) label.textContent = '点击复制邮箱'; }, 1800);
+					});
 				}
-				setTimeout(() => { if (label) label.textContent = '点击复制邮箱'; }, 1800);
+
+				// Spotlight that follows the pointer on tiles & cards
+				document.querySelectorAll<HTMLElement>('.tile, .card').forEach(el => {
+					if (el.dataset.spotBound) return;
+					el.dataset.spotBound = '1';
+					el.addEventListener('pointermove', e => {
+						const r = el.getBoundingClientRect();
+						el.style.setProperty('--mx', `${e.clientX - r.left}px`);
+						el.style.setProperty('--my', `${e.clientY - r.top}px`);
+					});
+				});
+
+				// Typewriter cycling quote
+				const quoteEl = document.getElementById('hero-quote');
+				const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+				if (quoteEl && !reduce && !quoteEl.dataset.bound) {
+					quoteEl.dataset.bound = '1';
+					const quotes: string[] = JSON.parse(quoteEl.dataset.quotes || '[]');
+					if (quotes.length > 1) {
+						quoteEl.classList.add('typing');
+						let qi = 0, ci = quotes[0].length, dir = -1, timer = 0;
+						const step = () => {
+							const text = quotes[qi];
+							if (dir === -1) {
+								ci--;
+								quoteEl.textContent = text.slice(0, Math.max(0, ci));
+								if (ci <= 0) { dir = 1; qi = (qi + 1) % quotes.length; timer = window.setTimeout(step, 350); return; }
+								timer = window.setTimeout(step, 45);
+							} else {
+								ci++;
+								quoteEl.textContent = text.slice(0, ci);
+								if (ci >= text.length) { dir = -1; timer = window.setTimeout(step, 2600); return; }
+								timer = window.setTimeout(step, 90);
+							}
+						};
+						timer = window.setTimeout(step, 2400);
+						document.addEventListener('astro:before-swap', () => window.clearTimeout(timer), { once: true });
+					}
+				}
 			});
 		</script>
 	</body>
@@ -159,9 +265,42 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 	}
 	.hero-sub { color: var(--text-secondary); font-size: 1.1rem; }
 	.hero-quote {
+		min-height: 1.6em;
 		color: var(--text-muted);
 		font-family: var(--font-display);
 		font-style: italic;
+	}
+	.hero-quote.typing::after {
+		content: '|';
+		margin-left: 2px;
+		font-style: normal;
+		color: var(--accent);
+		animation: blink 1s steps(2, end) infinite;
+	}
+	@keyframes blink { 50% { opacity: 0; } }
+	.hero-status {
+		display: inline-flex;
+		align-items: center;
+		gap: .45rem;
+		padding: .3rem .8rem;
+		border-radius: 999px;
+		font-size: .78rem;
+		color: var(--text-muted);
+		background: var(--bg-secondary);
+		border: 1px solid var(--border-color);
+	}
+	.pulse-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #10b981;
+		box-shadow: 0 0 0 0 rgba(16, 185, 129, .5);
+		animation: pulse-ring 2.2s ease-out infinite;
+	}
+	@keyframes pulse-ring {
+		0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, .5); }
+		70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+		100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
 	}
 	.btn {
 		display: inline-flex;
@@ -194,7 +333,118 @@ const tags = Array.from(new Set(posts.flatMap(p => p.data.tags)));
 		.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
 	}
 	@media (max-width: 639px) { .btn { width: 100%; max-width: 320px; } }
+
+	/* ---------- section heads ---------- */
+	.sec-head { text-align: center; margin-bottom: 2.25rem; }
+	.sec-head.row { display: flex; align-items: flex-end; justify-content: space-between; text-align: left; gap: 1rem; }
+	.eyebrow {
+		display: inline-block; margin-bottom: .6rem; padding: .25rem .65rem; border-radius: 999px;
+		font: 700 .7rem/1 ui-monospace, monospace; letter-spacing: .18em; text-transform: uppercase;
+		color: var(--accent); background: var(--accent-soft);
+	}
+	.sec-head h2 { margin: 0; font: 700 clamp(1.6rem, 4vw, 2.2rem)/1.2 var(--font-display); color: var(--text-primary); }
+	.sec-head p { margin: .5rem 0 0; color: var(--text-muted); font-size: .95rem; }
+	.more { font-weight: 600; font-size: .9rem; color: var(--text-secondary); text-decoration: none; white-space: nowrap; }
+	.more span { display: inline-block; transition: transform .2s; }
+	.more:hover { color: var(--accent); }
+	.more:hover span { transform: translateX(4px); }
+
+	/* ---------- bento categories ---------- */
+	.bento { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(170px, auto); }
+	.tile {
+		--mx: 50%; --my: 0%;
+		position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; gap: 1rem;
+		padding: 1.25rem 1.35rem; border-radius: 20px; text-decoration: none; color: var(--text-primary);
+		background:
+			radial-gradient(140% 120% at 100% 0%, color-mix(in srgb, var(--hue) 16%, transparent), transparent 55%),
+			var(--bg-secondary);
+		border: 1px solid color-mix(in srgb, var(--hue) 18%, var(--border-color));
+		opacity: 0; animation: rise .6s cubic-bezier(.2,.8,.2,1) forwards;
+		transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .3s, box-shadow .35s;
+	}
+	.tile::before {
+		content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity .3s;
+		background: radial-gradient(260px circle at var(--mx) var(--my), color-mix(in srgb, var(--hue) 22%, transparent), transparent 70%);
+	}
+	.tile.feat { grid-row: span 2; }
+	.tile-top { display: flex; align-items: flex-start; justify-content: space-between; }
+	.ico {
+		display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px;
+		color: var(--hue); background: color-mix(in srgb, var(--hue) 14%, transparent);
+		transition: transform .45s cubic-bezier(.34,1.6,.5,1), background-color .3s, color .3s;
+	}
+	.num {
+		font: 800 clamp(2.4rem, 6vw, 3.4rem)/.85 var(--font-display); letter-spacing: -.02em;
+		color: transparent; -webkit-text-stroke: 1.5px color-mix(in srgb, var(--hue) 70%, var(--text-muted));
+		transition: color .35s;
+	}
+	.tile.feat .num { font-size: clamp(3.4rem, 9vw, 5.5rem); }
+	.tile h3 { display: flex; align-items: center; gap: .5rem; margin: 0; font: 700 1.25rem/1.2 var(--font-body); }
+	.tile.feat h3 { font-size: 1.6rem; }
+	.arrow { color: var(--hue); opacity: 0; transform: translateX(-6px); transition: opacity .25s, transform .3s; }
+	.blurb { margin: .35rem 0 0; font-size: .85rem; color: var(--text-muted); }
+	.subs { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .8rem; }
+	.subs span {
+		padding: .25rem .55rem; border-radius: 999px; font: 600 .75rem/1.2 var(--font-body);
+		color: var(--text-secondary); background: color-mix(in srgb, var(--hue) 9%, var(--bg-primary));
+	}
+	.subs sup { margin-left: .15rem; font-size: .62rem; opacity: .6; }
+	.recent { list-style: none; margin: 1.1rem 0 0; padding: .9rem 0 0; border-top: 1px dashed color-mix(in srgb, var(--hue) 30%, var(--border-color)); }
+	.recent li { display: flex; flex-direction: column; gap: .15rem; font-size: .9rem; font-weight: 600; color: var(--text-secondary); line-height: 1.4; }
+	.recent li + li { margin-top: .7rem; }
+	.recent time { font: 600 .7rem ui-monospace, monospace; color: var(--hue); letter-spacing: .04em; }
+	.tile.empty { background: transparent; border-style: dashed; color: var(--text-muted); }
+	.tile.empty .ico { filter: grayscale(.6); opacity: .7; }
+	.tile.empty .num { -webkit-text-stroke-color: var(--border-color); }
+	@media (hover: hover) {
+		a.tile:hover { transform: translateY(-4px); border-color: var(--hue); box-shadow: 0 18px 40px -22px var(--hue); }
+		a.tile:hover::before { opacity: 1; }
+		a.tile:hover .ico { transform: rotate(-10deg) scale(1.1); color: #fff; background: var(--hue); }
+		a.tile:hover .num { color: color-mix(in srgb, var(--hue) 18%, transparent); }
+		a.tile:hover .arrow { opacity: 1; transform: none; }
+	}
+	a.tile:active { transform: scale(.98); }
+	@media (max-width: 860px) {
+		.bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		.tile.feat { grid-column: span 2; grid-row: auto; }
+	}
+	@media (max-width: 520px) {
+		.bento { grid-template-columns: minmax(0, 1fr); }
+		.tile.feat { grid-column: auto; }
+	}
+
+	/* ---------- latest posts ---------- */
+	.latest { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+	.meta time { white-space: nowrap; font-family: ui-monospace, monospace; letter-spacing: .02em; }
+	.card {
+		--mx: 50%; --my: 0%;
+		position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; gap: .6rem;
+		padding: 1.4rem 1.35rem 1.5rem; border-radius: 18px; text-decoration: none;
+		background: var(--bg-secondary); border: 1px solid var(--border-color);
+		opacity: 0; animation: rise .6s cubic-bezier(.2,.8,.2,1) forwards;
+		transition: transform .35s cubic-bezier(.2,.8,.2,1), border-color .3s, box-shadow .35s;
+	}
+	.card::before {
+		content: ''; position: absolute; inset: 0; z-index: -1; opacity: 0; transition: opacity .3s;
+		background: radial-gradient(240px circle at var(--mx) var(--my), color-mix(in srgb, var(--hue) 14%, transparent), transparent 70%);
+	}
+	.card::after { content: ''; position: absolute; left: 1.35rem; right: 1.35rem; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: var(--hue); transform: scaleX(.18); transform-origin: left; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+	.idx { position: absolute; right: 1rem; bottom: -.6rem; z-index: -1; font: 800 4.5rem/1 var(--font-display); color: transparent; -webkit-text-stroke: 1px var(--border-color); transition: -webkit-text-stroke-color .3s; }
+	.meta { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; font-size: .75rem; color: var(--text-muted); }
+	.badge { padding: .2rem .5rem; border-radius: 6px; font-weight: 700; color: var(--hue); background: color-mix(in srgb, var(--hue) 12%, transparent); }
+	.card h3 { margin: 0; font: 700 1.05rem/1.45 var(--font-body); color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+	.card p { margin: 0; font-size: .85rem; line-height: 1.6; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+	@media (hover: hover) {
+		.card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--hue) 45%, var(--border-color)); box-shadow: 0 18px 40px -26px var(--hue); }
+		.card:hover::before { opacity: 1; }
+		.card:hover::after { transform: scaleX(1); }
+		.card:hover .idx { -webkit-text-stroke-color: color-mix(in srgb, var(--hue) 40%, transparent); }
+	}
+	@media (max-width: 860px) { .latest { grid-template-columns: minmax(0, 1fr); } }
+
+	@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 	@media (prefers-reduced-motion: reduce) {
 		.avatar-ring, .avatar-ring img { animation: none; }
+		.tile, .card { animation: none; opacity: 1; }
 	}
 </style>

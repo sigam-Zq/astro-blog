@@ -8,9 +8,14 @@ import BackToTop from '../components/BackToTop.astro';
 import Mermaid from '../components/Mermaid.astro';
 import { getCollection } from 'astro:content';
 
-type Props = CollectionEntry<'blog'>['data'];
+type Props = CollectionEntry<'blog'>['data'] & { slug?: string };
 
-const { title, description, pubDate, updatedDate, heroImage, tags } = Astro.props;
+import { resolveTag, resolvePostTags, displayLabel } from '../data/taxonomy.mjs';
+import { hueOf } from '../data/rootStyle';
+const { title, description, pubDate, updatedDate, heroImage, tags, slug } = Astro.props;
+const primaryRoot = resolvePostTags(tags)[0][0];
+const postHue = hueOf(primaryRoot);
+const postSlug = slug ?? Astro.url.pathname.replace(/^\/blog\/|\/$/g, '');
 
 // Calculate reading time based on content
 const entry = await Astro.props;
@@ -140,10 +145,23 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 			.post-nav-card:last-of-type {
 				animation-delay: 0.3s;
 			}
+			.reading-progress {
+				background: linear-gradient(90deg, var(--post-hue, var(--accent)), color-mix(in srgb, var(--post-hue, var(--accent)) 60%, #ffd23f));
+				box-shadow: 0 0 10px color-mix(in srgb, var(--post-hue, var(--accent)) 35%, transparent);
+			}
+			:global(.toc-side a.active),
+			:global(.toc-panel a.active) {
+				color: var(--post-hue, var(--accent));
+				border-left-color: var(--post-hue, var(--accent));
+			}
+			.tag-chip:hover {
+				border-color: var(--post-hue, var(--accent));
+				color: var(--post-hue, var(--accent));
+			}
 		</style>
 	</head>
 
-	<body class="min-h-screen flex flex-col" style="background-color: var(--bg-primary);">
+	<body class="min-h-screen flex flex-col" style={`background-color: var(--bg-primary); --post-hue: ${postHue};`}>
 		<div id="reading-progress" class="reading-progress" style="width: 0%;"></div>
 		<Header />
 
@@ -176,7 +194,7 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 						)}
 					</div>
 
-					<h1 class="text-3xl md:text-4xl font-bold title-text mb-6 leading-tight">
+					<h1 class="text-3xl md:text-4xl font-bold title-text mb-6 leading-tight" transition:name={`post-title-${postSlug}`}>
 						{title}
 					</h1>
 
@@ -184,12 +202,12 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 						<div class="flex flex-wrap justify-center gap-2">
 							{tags.map(tag => (
 								<a
-									href={`/blog?tag=${tag}`}
+									href={`/blog?tag=${resolveTag(tag).at(-1)}`}
 									class="tag-chip px-3 py-1 rounded-full text-xs font-medium
 										   hover:scale-105 active:scale-95
 										   transition-all duration-150"
 								>
-									{tag}
+									{displayLabel(resolveTag(tag).at(-1)!, tags)}
 								</a>
 							))}
 						</div>
@@ -279,6 +297,10 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 
 				window.addEventListener('scroll', updateProgress, { passive: true });
 				updateProgress();
+				document.addEventListener('astro:before-swap', function onSwap() {
+					window.removeEventListener('scroll', updateProgress);
+					document.removeEventListener('astro:before-swap', onSwap);
+				});
 			})();
 		</script>
 
@@ -385,9 +407,15 @@ const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 				panel.appendChild(t2); panel.appendChild(buildList());
 				sheet.appendChild(panel);
 				function closeSheet() { sheet.hidden = true; document.body.classList.remove('toc-open'); }
+				function onEsc(e) { if (e.key === 'Escape') closeSheet(); }
 				fab.addEventListener('click', function() { sheet.hidden = false; document.body.classList.add('toc-open'); });
 				sheet.addEventListener('click', function(e) { if (e.target === sheet || e.target.tagName === 'A') closeSheet(); });
-				document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeSheet(); });
+				document.addEventListener('keydown', onEsc);
+				document.addEventListener('astro:before-swap', function onSwap() {
+					document.removeEventListener('keydown', onEsc);
+					document.body.classList.remove('toc-open');
+					document.removeEventListener('astro:before-swap', onSwap);
+				});
 				document.body.appendChild(fab); document.body.appendChild(sheet);
 
 				// scroll spy

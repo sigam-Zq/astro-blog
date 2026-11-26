@@ -35,5 +35,9 @@
 		btn.addEventListener('click', function() {
 			window.scrollTo({ top: 0, behavior: 'smooth' });
 		});
+		document.addEventListener('astro:before-swap', function onSwap() {
+			window.removeEventListener('scroll', updateVisibility);
+			document.removeEventListener('astro:before-swap', onSwap);
+		});
 	})();
 </script>

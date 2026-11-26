@@ -3,7 +3,7 @@ title: 'Three.js 天空盒 (Skybox) 入门:从零搭一个可交互的 3D 场景
 description: '用 Three.js + OrbitControls + CubeTextureLoader 做一个能鼠标拖拽环顾、滚轮缩放的天空盒演示,涵盖 Scene、Camera、Renderer、PBR 材质、光照与动画循环。'
 pubDate: 'Jul 15 2026'
 heroImage: '/blog-placeholder-3.jpg'
-tags: ['Three.js', 'WebGL', '前端', '3D']
+tags: ['Three.js', 'WebGL']
 ---
 
 > **在线 Demo**:[天空盒演示](/html/skybox.html) · 鼠标拖拽环顾四周,滚轮缩放,右侧 GUI 面板可调参。

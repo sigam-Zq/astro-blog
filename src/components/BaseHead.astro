@@ -3,6 +3,7 @@
 // all pages through the use of the <BaseHead /> component.
 import '../styles/global.css';
 import { SITE_TITLE } from '../consts';
+import { ClientRouter } from 'astro:transitions';
 
 interface Props {
 	title: string;
@@ -53,3 +54,14 @@ const { title, description, image = '/blog-placeholder-1.jpg' } = Astro.props;
 <meta property="twitter:title" content={title} />
 <meta property="twitter:description" content={description} />
 <meta property="twitter:image" content={new URL(image, Astro.url)} />
+<ClientRouter />
+<script is:inline>
+	if (!window.__themeSwapBound) {
+		window.__themeSwapBound = true;
+		document.addEventListener('astro:after-swap', function () {
+			var saved = localStorage.getItem('theme');
+			var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			document.documentElement.dataset.theme = saved || (dark ? 'dark' : 'light');
+		});
+	}
+</script>

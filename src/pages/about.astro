@@ -74,26 +74,30 @@ import Layout from '../layouts/BlogPost.astro';
 </Layout>
 
 <script>
-	const btn = document.getElementById('copy-email');
-	btn?.addEventListener('click', async () => {
-		const email = btn.dataset.email || '';
-		const label = btn.querySelector('.copy-label');
-		let ok = false;
-		try {
-			await navigator.clipboard.writeText(email);
-			ok = true;
-		} catch {
-			const ta = document.createElement('textarea');
-			ta.value = email;
-			ta.style.position = 'fixed';
-			ta.style.opacity = '0';
-			document.body.appendChild(ta);
-			ta.select();
-			try { ok = document.execCommand('copy'); } catch {}
-			ta.remove();
-		}
-		if (label) label.textContent = ok ? '✓ 已复制' : '复制失败，请手动复制';
-		setTimeout(() => { if (label) label.textContent = '点击复制邮箱'; }, 1800);
+	document.addEventListener('astro:page-load', () => {
+		const btn = document.getElementById('copy-email');
+		if (!btn || btn.dataset.bound) return;
+		btn.dataset.bound = '1';
+		btn.addEventListener('click', async () => {
+			const email = btn.dataset.email || '';
+			const label = btn.querySelector('.copy-label');
+			let ok = false;
+			try {
+				await navigator.clipboard.writeText(email);
+				ok = true;
+			} catch {
+				const ta = document.createElement('textarea');
+				ta.value = email;
+				ta.style.position = 'fixed';
+				ta.style.opacity = '0';
+				document.body.appendChild(ta);
+				ta.select();
+				try { ok = document.execCommand('copy'); } catch {}
+				ta.remove();
+			}
+			if (label) label.textContent = ok ? '✓ 已复制' : '复制失败，请手动复制';
+			setTimeout(() => { if (label) label.textContent = '点击复制邮箱'; }, 1800);
+		});
 	});
 </script>
 

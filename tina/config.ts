@@ -74,7 +74,7 @@ export default defineConfig({
             name: "tags",
             label: "Tags",
             list: true,
-            description: "文章标签，例如: Code, Rust, Go",
+            description: "文章标签，最多 3 个，见 src/data/taxonomy.mjs；未登记的标签自动归入 Other",
           },
         ],
       },
